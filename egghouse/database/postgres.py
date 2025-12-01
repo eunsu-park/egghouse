@@ -320,15 +320,27 @@ class PostgresManager:
         self.execute(query)
         self.logger.info(f"Table '{full_table_name}' dropped")
     
-    def list_tables(self, schema: str = 'public') -> List[Dict]:
+    def list_tables(self, schema: str = 'public', names_only: bool = False) -> Union[List[Dict], List[str]]:
         """
         List all tables in a schema.
         
         Args:
             schema: Schema name (default: 'public')
+            names_only: If True, return only table names as list of strings.
+                       If False, return full info as list of dicts (default: False)
             
         Returns:
-            List of table information dictionaries
+            If names_only=True: List of table names (strings)
+            If names_only=False: List of table information dictionaries
+            
+        Example:
+            >>> # Get full info
+            >>> tables = db.list_tables()
+            >>> print(tables)  # [{'name': 'users', 'size': '8192 bytes'}, ...]
+            
+            >>> # Get names only
+            >>> names = db.list_tables(names_only=True)
+            >>> print(names)  # ['users', 'products', ...]
         """
         query = """
         SELECT 
@@ -339,7 +351,11 @@ class PostgresManager:
         AND table_type = 'BASE TABLE'
         ORDER BY table_name;
         """
-        return self.execute(query, params=(schema,), fetch=True)
+        results = self.execute(query, params=(schema,), fetch=True)
+        
+        if names_only:
+            return [table['name'] for table in results]
+        return results
     
     def describe_table(self, table_name: str, schema: str = 'public') -> List[Dict]:
         """
@@ -770,3 +786,4 @@ def to_dataframe(results: List[Dict], parse_dates: List[str] = None):
                 df[col] = pd.to_datetime(df[col])
     
     return df
+

@@ -21,7 +21,7 @@ pip install pandas
 또는 egghouse 패키지 설치 시:
 
 ```bash
-pip install git+https://github.com/yourusername/egghouse.git
+pip install git+https://github.com/eunsu-park/egghouse.git
 ```
 
 ## 빠른 시작
