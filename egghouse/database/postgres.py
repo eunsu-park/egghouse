@@ -5,7 +5,7 @@ Simple and practical PostgreSQL manager for research purposes.
 """
 
 import logging
-from typing import Optional, Dict, List, Any, Union
+from typing import Optional, Dict, List, Any, Union, Tuple
 from contextlib import contextmanager
 
 try:
@@ -42,12 +42,12 @@ class PostgresManager:
         self,
         host: str = 'localhost',
         port: int = 5432,
-        database: str = None,
-        user: str = None,
-        password: str = None,
+        database: Optional[str] = None,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
         log_queries: bool = False,
         logger: Optional[logging.Logger] = None
-    ):
+    ) -> None:
         """
         Initialize PostgreSQL manager.
         
@@ -83,8 +83,60 @@ class PostgresManager:
         
         self.conn = None
         self._connect()
-    
-    def _connect(self):
+
+    def _build_table_identifier(
+        self,
+        table_name: str,
+        schema: Optional[str] = None
+    ) -> sql.Composed:
+        """
+        Build a safe table identifier using psycopg2.sql module.
+
+        Args:
+            table_name: Name of the table.
+            schema: Schema name (optional).
+
+        Returns:
+            sql.Composed object for safe SQL interpolation.
+        """
+        if schema:
+            return sql.SQL("{}.{}").format(
+                sql.Identifier(schema),
+                sql.Identifier(table_name)
+            )
+        return sql.Identifier(table_name)
+
+    def _build_where_clause(
+        self,
+        where: Optional[Dict[str, Any]]
+    ) -> Tuple[sql.Composed, List[Any]]:
+        """
+        Build a parameterized WHERE clause.
+
+        Args:
+            where: Dictionary of column:value pairs for WHERE clause.
+
+        Returns:
+            Tuple of (sql.Composed WHERE clause, list of parameter values).
+        """
+        if not where:
+            return sql.SQL(""), []
+
+        conditions = []
+        params = []
+        for col, val in where.items():
+            conditions.append(sql.SQL("{} = %s").format(sql.Identifier(col)))
+            params.append(val)
+
+        where_clause = sql.SQL(" WHERE ") + sql.SQL(" AND ").join(conditions)
+        return where_clause, params
+
+    def _log_info(self, message: str) -> None:
+        """Log info message only if query logging is enabled."""
+        if self.log_queries:
+            self.logger.info(message)
+
+    def _connect(self) -> None:
         """Establish database connection."""
         try:
             conn_params = {
@@ -98,18 +150,18 @@ class PostgresManager:
             
             self.conn = psycopg2.connect(**conn_params)
             self.conn.autocommit = True
-            
+
             db_info = f"{self.database}@{self.host}" if self.database else f"{self.host}"
-            self.logger.info(f"Connected to PostgreSQL: {db_info}")
+            self._log_info(f"Connected to PostgreSQL: {db_info}")
         except Exception as e:
             self.logger.error(f"Connection failed: {e}")
             raise
     
-    def close(self):
+    def close(self) -> None:
         """Close database connection."""
         if self.conn:
             self.conn.close()
-            self.logger.info("Connection closed")
+            self._log_info("Connection closed")
     
     def __enter__(self):
         """Context manager entry."""
@@ -165,11 +217,11 @@ class PostgresManager:
                     results = cursor.fetchall()
                     if dict_cursor:
                         results = [dict(row) for row in results]
-                    self.logger.info(f"Fetched {len(results)} rows")
+                    self._log_info(f"Fetched {len(results)} rows")
                     return results
                 else:
                     if cursor.rowcount >= 0:
-                        self.logger.info(f"Affected {cursor.rowcount} rows")
+                        self._log_info(f"Affected {cursor.rowcount} rows")
                     return None
         except Exception as e:
             self.logger.error(f"Query failed: {e}")
@@ -177,38 +229,38 @@ class PostgresManager:
     
     # ==================== Database Operations ====================
     
-    def create_database(self, db_name: str):
+    def create_database(self, db_name: str) -> None:
         """
         Create a new database.
-        
+
         Args:
-            db_name: Name of the database to create
+            db_name: Name of the database to create.
         """
         query = sql.SQL("CREATE DATABASE {}").format(sql.Identifier(db_name))
         self.execute(query.as_string(self.conn))
-        self.logger.info(f"Database '{db_name}' created")
+        self._log_info(f"Database '{db_name}' created")
     
-    def drop_database(self, db_name: str, force: bool = False):
+    def drop_database(self, db_name: str, force: bool = False) -> None:
         """
         Drop a database.
-        
+
         Args:
-            db_name: Name of the database to drop
-            force: If True, terminate existing connections before dropping
+            db_name: Name of the database to drop.
+            force: If True, terminate existing connections before dropping.
         """
         if force:
-            # Terminate existing connections
-            terminate_query = f"""
+            # Terminate existing connections using parameterized query
+            terminate_query = """
             SELECT pg_terminate_backend(pg_stat_activity.pid)
             FROM pg_stat_activity
-            WHERE pg_stat_activity.datname = '{db_name}'
+            WHERE pg_stat_activity.datname = %s
             AND pid <> pg_backend_pid();
             """
-            self.execute(terminate_query)
-        
+            self.execute(terminate_query, params=(db_name,))
+
         query = sql.SQL("DROP DATABASE {}").format(sql.Identifier(db_name))
         self.execute(query.as_string(self.conn))
-        self.logger.info(f"Database '{db_name}' dropped")
+        self._log_info(f"Database '{db_name}' dropped")
     
     def list_databases(self) -> List[Dict]:
         """
@@ -228,34 +280,34 @@ class PostgresManager:
     
     # ==================== Schema Operations ====================
     
-    def create_schema(self, schema_name: str):
+    def create_schema(self, schema_name: str) -> None:
         """
         Create a new schema.
-        
+
         Args:
-            schema_name: Name of the schema to create
+            schema_name: Name of the schema to create.
         """
         query = sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(
             sql.Identifier(schema_name)
         )
         self.execute(query.as_string(self.conn))
-        self.logger.info(f"Schema '{schema_name}' created")
+        self._log_info(f"Schema '{schema_name}' created")
     
-    def drop_schema(self, schema_name: str, cascade: bool = False):
+    def drop_schema(self, schema_name: str, cascade: bool = False) -> None:
         """
         Drop a schema.
-        
+
         Args:
-            schema_name: Name of the schema to drop
-            cascade: If True, drop all objects in the schema
+            schema_name: Name of the schema to drop.
+            cascade: If True, drop all objects in the schema.
         """
-        cascade_str = "CASCADE" if cascade else ""
-        query = sql.SQL("DROP SCHEMA {} {}").format(
+        cascade_sql = sql.SQL(" CASCADE") if cascade else sql.SQL("")
+        query = sql.SQL("DROP SCHEMA {}{}").format(
             sql.Identifier(schema_name),
-            sql.SQL(cascade_str)
+            cascade_sql
         )
         self.execute(query.as_string(self.conn))
-        self.logger.info(f"Schema '{schema_name}' dropped")
+        self._log_info(f"Schema '{schema_name}' dropped")
     
     def list_schemas(self) -> List[Dict]:
         """
@@ -278,16 +330,16 @@ class PostgresManager:
         self,
         table_name: str,
         columns: Dict[str, str],
-        schema: str = None
-    ):
+        schema: Optional[str] = None
+    ) -> None:
         """
         Create a new table.
-        
+
         Args:
-            table_name: Name of the table
-            columns: Dictionary of column_name: column_definition
-            schema: Schema name (optional)
-            
+            table_name: Name of the table.
+            columns: Dictionary of column_name: column_definition.
+            schema: Schema name (optional).
+
         Example:
             >>> db.create_table('users', {
             ...     'id': 'SERIAL PRIMARY KEY',
@@ -296,31 +348,52 @@ class PostgresManager:
             ...     'created_at': 'TIMESTAMP DEFAULT NOW()'
             ... })
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        
-        column_defs = [f"{col} {definition}" for col, definition in columns.items()]
-        columns_str = ", ".join(column_defs)
-        
-        query = f"CREATE TABLE IF NOT EXISTS {full_table_name} ({columns_str})"
-        self.execute(query)
-        self.logger.info(f"Table '{full_table_name}' created")
+        table_id = self._build_table_identifier(table_name, schema)
+
+        # Build column definitions with safe identifiers
+        col_defs = []
+        for col_name, col_def in columns.items():
+            col_defs.append(
+                sql.SQL("{} {}").format(sql.Identifier(col_name), sql.SQL(col_def))
+            )
+        columns_sql = sql.SQL(", ").join(col_defs)
+
+        query = sql.SQL("CREATE TABLE IF NOT EXISTS {} ({})").format(
+            table_id, columns_sql
+        )
+        self.execute(query.as_string(self.conn))
+
+        full_name = f"{schema}.{table_name}" if schema else table_name
+        self._log_info(f"Table '{full_name}' created")
     
-    def drop_table(self, table_name: str, schema: str = None, cascade: bool = False):
+    def drop_table(
+        self,
+        table_name: str,
+        schema: Optional[str] = None,
+        cascade: bool = False
+    ) -> None:
         """
         Drop a table.
-        
+
         Args:
-            table_name: Name of the table
-            schema: Schema name (optional)
-            cascade: If True, drop dependent objects
+            table_name: Name of the table.
+            schema: Schema name (optional).
+            cascade: If True, drop dependent objects.
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        cascade_str = "CASCADE" if cascade else ""
-        query = f"DROP TABLE IF EXISTS {full_table_name} {cascade_str}"
-        self.execute(query)
-        self.logger.info(f"Table '{full_table_name}' dropped")
+        table_id = self._build_table_identifier(table_name, schema)
+        cascade_sql = sql.SQL(" CASCADE") if cascade else sql.SQL("")
+
+        query = sql.SQL("DROP TABLE IF EXISTS {}{}").format(table_id, cascade_sql)
+        self.execute(query.as_string(self.conn))
+
+        full_name = f"{schema}.{table_name}" if schema else table_name
+        self._log_info(f"Table '{full_name}' dropped")
     
-    def list_tables(self, schema: str = 'public', names_only: bool = False) -> Union[List[Dict], List[str]]:
+    def list_tables(
+        self,
+        schema: str = 'public',
+        names_only: bool = False
+    ) -> Union[List[Dict], List[str]]:
         """
         List all tables in a schema.
         
@@ -410,21 +483,21 @@ class PostgresManager:
         self,
         table_name: str,
         data: Union[Dict, List[Dict]],
-        schema: str = None,
+        schema: Optional[str] = None,
         return_id: bool = False
     ) -> Optional[Any]:
         """
         Insert data into a table.
-        
+
         Args:
-            table_name: Name of the table
-            data: Dictionary or list of dictionaries with column:value pairs
-            schema: Schema name (optional)
-            return_id: If True, return the inserted ID (requires RETURNING clause)
-            
+            table_name: Name of the table.
+            data: Dictionary or list of dictionaries with column:value pairs.
+            schema: Schema name (optional).
+            return_id: If True, return the inserted ID (requires RETURNING clause).
+
         Returns:
-            Inserted ID if return_id=True, None otherwise
-            
+            Inserted ID if return_id=True, None otherwise.
+
         Example:
             >>> db.insert('users', {'name': 'Eunsu', 'email': 'eunsu@kasi.re.kr'})
             >>> db.insert('users', [
@@ -432,319 +505,356 @@ class PostgresManager:
             ...     {'name': 'User2', 'email': 'user2@example.com'}
             ... ])
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        
+        table_id = self._build_table_identifier(table_name, schema)
+
         # Handle single dictionary
         if isinstance(data, dict):
             data = [data]
-        
+
         if not data:
             self.logger.warning("No data to insert")
             return None
-        
+
         # Get columns from first record
         columns = list(data[0].keys())
-        columns_str = ", ".join(columns)
-        placeholders = ", ".join(["%s"] * len(columns))
-        
+        columns_sql = sql.SQL(", ").join([sql.Identifier(col) for col in columns])
+        placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(columns))
+
         # Prepare values
         values = [tuple(record[col] for col in columns) for record in data]
-        
+
         # Build query
-        query = f"INSERT INTO {full_table_name} ({columns_str}) VALUES ({placeholders})"
+        query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+            table_id, columns_sql, placeholders
+        )
         if return_id:
-            query += " RETURNING id"
-        
+            query = query + sql.SQL(" RETURNING id")
+
+        query_str = query.as_string(self.conn)
+
         if len(values) == 1:
-            result = self.execute(query, params=values[0], fetch=return_id)
+            result = self.execute(query_str, params=values[0], fetch=return_id)
             return result[0]['id'] if return_id and result else None
         else:
             # Batch insert
             with self._cursor(dict_cursor=False) as cursor:
-                cursor.executemany(query, values)
-                self.logger.info(f"Inserted {len(values)} rows into '{full_table_name}'")
+                cursor.executemany(query_str, values)
+                full_name = f"{schema}.{table_name}" if schema else table_name
+                self._log_info(f"Inserted {len(values)} rows into '{full_name}'")
             return None
     
     def select(
         self,
         table_name: str,
-        columns: List[str] = None,
-        where: Dict[str, Any] = None,
-        schema: str = None,
-        order_by: str = None,
-        limit: int = None
+        columns: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
+        order_by: Optional[str] = None,
+        limit: Optional[int] = None
     ) -> List[Dict]:
         """
         Select data from a table.
-        
+
         Args:
-            table_name: Name of the table
-            columns: List of columns to select (default: all columns)
-            where: Dictionary of column:value pairs for WHERE clause
-            schema: Schema name (optional)
-            order_by: ORDER BY clause (e.g., 'created_at DESC')
-            limit: Maximum number of rows to return
-            
+            table_name: Name of the table.
+            columns: List of columns to select (default: all columns).
+            where: Dictionary of column:value pairs for WHERE clause.
+            schema: Schema name (optional).
+            order_by: ORDER BY clause (e.g., 'created_at DESC').
+            limit: Maximum number of rows to return.
+
         Returns:
-            List of result dictionaries
-            
+            List of result dictionaries.
+
         Example:
             >>> db.select('users', where={'name': 'Eunsu'})
             >>> db.select('users', columns=['id', 'name'], order_by='created_at DESC', limit=10)
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        
+        table_id = self._build_table_identifier(table_name, schema)
+
         # Build SELECT clause
-        columns_str = ", ".join(columns) if columns else "*"
-        query = f"SELECT {columns_str} FROM {full_table_name}"
-        
+        if columns:
+            columns_sql = sql.SQL(", ").join([sql.Identifier(col) for col in columns])
+        else:
+            columns_sql = sql.SQL("*")
+
+        query = sql.SQL("SELECT {} FROM {}").format(columns_sql, table_id)
+
         # Build WHERE clause
-        params = []
-        if where:
-            where_clauses = []
-            for col, val in where.items():
-                where_clauses.append(f"{col} = %s")
-                params.append(val)
-            query += " WHERE " + " AND ".join(where_clauses)
-        
-        # Add ORDER BY
+        where_clause, params = self._build_where_clause(where)
+        query = query + where_clause
+
+        # Add ORDER BY (user-provided, kept as raw SQL for flexibility)
         if order_by:
-            query += f" ORDER BY {order_by}"
-        
+            query = query + sql.SQL(" ORDER BY {}").format(sql.SQL(order_by))
+
         # Add LIMIT
         if limit:
-            query += f" LIMIT {limit}"
-        
-        return self.execute(query, params=tuple(params) if params else None, fetch=True)
+            query = query + sql.SQL(" LIMIT {}").format(sql.Literal(limit))
+
+        return self.execute(
+            query.as_string(self.conn),
+            params=tuple(params) if params else None,
+            fetch=True
+        )
     
     def select_date_range(
         self,
         table_name: str,
         date_column: str,
-        start_date,
-        end_date,
-        columns: List[str] = None,
-        where: Dict[str, Any] = None,
-        schema: str = None,
-        order_by: str = None,
-        limit: int = None,
+        start_date: Any,
+        end_date: Any,
+        columns: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None,
+        order_by: Optional[str] = None,
+        limit: Optional[int] = None,
         inclusive_end: bool = False
     ) -> List[Dict]:
         """
         Select data within a date range.
-        
+
         Args:
-            table_name: Name of the table
-            date_column: Name of the date/timestamp column
-            start_date: Start datetime (inclusive)
-            end_date: End datetime (exclusive by default, inclusive if inclusive_end=True)
-            columns: List of columns to select (default: all columns)
-            where: Additional WHERE conditions (dictionary)
-            schema: Schema name (optional)
-            order_by: ORDER BY clause (e.g., 'date DESC')
-            limit: Maximum number of rows to return
-            inclusive_end: If True, use <= for end_date; if False, use < (default: False)
-            
+            table_name: Name of the table.
+            date_column: Name of the date/timestamp column.
+            start_date: Start datetime (inclusive).
+            end_date: End datetime (exclusive by default, inclusive if inclusive_end=True).
+            columns: List of columns to select (default: all columns).
+            where: Additional WHERE conditions (dictionary).
+            schema: Schema name (optional).
+            order_by: ORDER BY clause (e.g., 'date DESC').
+            limit: Maximum number of rows to return.
+            inclusive_end: If True, use <= for end_date; if False, use < (default: False).
+
         Returns:
-            List of result dictionaries
-            
+            List of result dictionaries.
+
         Example:
             >>> from datetime import datetime
             >>> start = datetime(2024, 1, 1)
             >>> end = datetime(2024, 12, 31)
             >>> db.select_date_range('observations', 'date', start, end)
-            >>> db.select_date_range('observations', 'timestamp', start, end, 
-            ...                      where={'region': 'AR12345'}, 
+            >>> db.select_date_range('observations', 'timestamp', start, end,
+            ...                      where={'region': 'AR12345'},
             ...                      order_by='timestamp DESC')
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        
+        table_id = self._build_table_identifier(table_name, schema)
+
         # Build SELECT clause
-        columns_str = ", ".join(columns) if columns else "*"
-        query = f"SELECT {columns_str} FROM {full_table_name}"
-        
-        # Build WHERE clause
-        params = []
-        where_clauses = []
-        
-        # Date range condition
-        end_operator = "<=" if inclusive_end else "<"
-        where_clauses.append(f"{date_column} >= %s AND {date_column} {end_operator} %s")
+        if columns:
+            columns_sql = sql.SQL(", ").join([sql.Identifier(col) for col in columns])
+        else:
+            columns_sql = sql.SQL("*")
+
+        query = sql.SQL("SELECT {} FROM {}").format(columns_sql, table_id)
+
+        # Build WHERE clause for date range
+        params: List[Any] = []
+        date_col_id = sql.Identifier(date_column)
+        end_operator = sql.SQL("<=") if inclusive_end else sql.SQL("<")
+
+        date_condition = sql.SQL("{} >= %s AND {} {}  %s").format(
+            date_col_id, date_col_id, end_operator
+        )
         params.extend([start_date, end_date])
-        
+
         # Additional WHERE conditions
-        if where:
-            for col, val in where.items():
-                where_clauses.append(f"{col} = %s")
-                params.append(val)
-        
-        query += " WHERE " + " AND ".join(where_clauses)
-        
+        additional_where, additional_params = self._build_where_clause(where)
+        params.extend(additional_params)
+
+        if additional_params:
+            # Remove " WHERE " prefix from additional_where and combine
+            query = query + sql.SQL(" WHERE ") + date_condition + sql.SQL(" AND ") + \
+                sql.SQL(" AND ").join([
+                    sql.SQL("{} = %s").format(sql.Identifier(col))
+                    for col in (where or {}).keys()
+                ])
+        else:
+            query = query + sql.SQL(" WHERE ") + date_condition
+
         # Add ORDER BY
         if order_by:
-            query += f" ORDER BY {order_by}"
-        
+            query = query + sql.SQL(" ORDER BY {}").format(sql.SQL(order_by))
+
         # Add LIMIT
         if limit:
-            query += f" LIMIT {limit}"
-        
-        return self.execute(query, params=tuple(params), fetch=True)
+            query = query + sql.SQL(" LIMIT {}").format(sql.Literal(limit))
+
+        return self.execute(query.as_string(self.conn), params=tuple(params), fetch=True)
     
     def update(
         self,
         table_name: str,
         data: Dict[str, Any],
         where: Dict[str, Any],
-        schema: str = None
+        schema: Optional[str] = None
     ) -> int:
         """
         Update data in a table.
-        
+
         Args:
-            table_name: Name of the table
-            data: Dictionary of column:value pairs to update
-            where: Dictionary of column:value pairs for WHERE clause
-            schema: Schema name (optional)
-            
+            table_name: Name of the table.
+            data: Dictionary of column:value pairs to update.
+            where: Dictionary of column:value pairs for WHERE clause.
+            schema: Schema name (optional).
+
         Returns:
-            Number of affected rows
-            
+            Number of affected rows.
+
+        Raises:
+            ValueError: If WHERE clause is not provided.
+
         Example:
             >>> db.update('users', {'email': 'new@example.com'}, where={'name': 'Eunsu'})
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        
-        # Build SET clause
-        set_clauses = []
-        params = []
-        for col, val in data.items():
-            set_clauses.append(f"{col} = %s")
-            params.append(val)
-        
-        query = f"UPDATE {full_table_name} SET " + ", ".join(set_clauses)
-        
-        # Build WHERE clause
-        if where:
-            where_clauses = []
-            for col, val in where.items():
-                where_clauses.append(f"{col} = %s")
-                params.append(val)
-            query += " WHERE " + " AND ".join(where_clauses)
-        else:
+        if not where:
             raise ValueError("WHERE clause is required for UPDATE operation")
-        
+
+        table_id = self._build_table_identifier(table_name, schema)
+
+        # Build SET clause
+        set_parts = []
+        params: List[Any] = []
+        for col, val in data.items():
+            set_parts.append(sql.SQL("{} = %s").format(sql.Identifier(col)))
+            params.append(val)
+        set_clause = sql.SQL(", ").join(set_parts)
+
+        # Build WHERE clause
+        where_clause, where_params = self._build_where_clause(where)
+        params.extend(where_params)
+
+        query = sql.SQL("UPDATE {} SET {}{}").format(table_id, set_clause, where_clause)
+
         with self._cursor(dict_cursor=False) as cursor:
-            cursor.execute(query, tuple(params))
+            cursor.execute(query.as_string(self.conn), tuple(params))
             return cursor.rowcount
     
     def delete(
         self,
         table_name: str,
         where: Dict[str, Any],
-        schema: str = None
+        schema: Optional[str] = None
     ) -> int:
         """
         Delete data from a table.
-        
+
         Args:
-            table_name: Name of the table
-            where: Dictionary of column:value pairs for WHERE clause
-            schema: Schema name (optional)
-            
+            table_name: Name of the table.
+            where: Dictionary of column:value pairs for WHERE clause.
+            schema: Schema name (optional).
+
         Returns:
-            Number of deleted rows
-            
+            Number of deleted rows.
+
+        Raises:
+            ValueError: If WHERE clause is not provided.
+
         Example:
             >>> db.delete('users', where={'name': 'Eunsu'})
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        
-        query = f"DELETE FROM {full_table_name}"
-        
-        # Build WHERE clause
-        params = []
-        if where:
-            where_clauses = []
-            for col, val in where.items():
-                where_clauses.append(f"{col} = %s")
-                params.append(val)
-            query += " WHERE " + " AND ".join(where_clauses)
-        else:
+        if not where:
             raise ValueError("WHERE clause is required for DELETE operation")
-        
+
+        table_id = self._build_table_identifier(table_name, schema)
+
+        # Build WHERE clause
+        where_clause, params = self._build_where_clause(where)
+
+        query = sql.SQL("DELETE FROM {}{}").format(table_id, where_clause)
+
         with self._cursor(dict_cursor=False) as cursor:
-            cursor.execute(query, tuple(params))
+            cursor.execute(query.as_string(self.conn), tuple(params))
             return cursor.rowcount
     
     # ==================== Utility Operations ====================
     
-    def count(self, table_name: str, where: Dict[str, Any] = None, schema: str = None) -> int:
+    def count(
+        self,
+        table_name: str,
+        where: Optional[Dict[str, Any]] = None,
+        schema: Optional[str] = None
+    ) -> int:
         """
         Count rows in a table.
-        
+
         Args:
-            table_name: Name of the table
-            where: Dictionary of column:value pairs for WHERE clause (optional)
-            schema: Schema name (optional)
-            
+            table_name: Name of the table.
+            where: Dictionary of column:value pairs for WHERE clause (optional).
+            schema: Schema name (optional).
+
         Returns:
-            Number of rows
+            Number of rows.
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        query = f"SELECT COUNT(*) as count FROM {full_table_name}"
-        
-        params = []
-        if where:
-            where_clauses = []
-            for col, val in where.items():
-                where_clauses.append(f"{col} = %s")
-                params.append(val)
-            query += " WHERE " + " AND ".join(where_clauses)
-        
-        result = self.execute(query, params=tuple(params) if params else None, fetch=True)
+        table_id = self._build_table_identifier(table_name, schema)
+
+        query = sql.SQL("SELECT COUNT(*) as count FROM {}").format(table_id)
+
+        # Build WHERE clause
+        where_clause, params = self._build_where_clause(where)
+        query = query + where_clause
+
+        result = self.execute(
+            query.as_string(self.conn),
+            params=tuple(params) if params else None,
+            fetch=True
+        )
         return result[0]['count'] if result else 0
     
-    def truncate(self, table_name: str, schema: str = None, cascade: bool = False):
+    def truncate(
+        self,
+        table_name: str,
+        schema: Optional[str] = None,
+        cascade: bool = False
+    ) -> None:
         """
         Truncate a table (remove all rows).
-        
+
         Args:
-            table_name: Name of the table
-            schema: Schema name (optional)
-            cascade: If True, truncate dependent tables
+            table_name: Name of the table.
+            schema: Schema name (optional).
+            cascade: If True, truncate dependent tables.
         """
-        full_table_name = f"{schema}.{table_name}" if schema else table_name
-        cascade_str = "CASCADE" if cascade else ""
-        query = f"TRUNCATE TABLE {full_table_name} {cascade_str}"
-        self.execute(query)
-        self.logger.info(f"Table '{full_table_name}' truncated")
+        table_id = self._build_table_identifier(table_name, schema)
+        cascade_sql = sql.SQL(" CASCADE") if cascade else sql.SQL("")
+
+        query = sql.SQL("TRUNCATE TABLE {}{}").format(table_id, cascade_sql)
+        self.execute(query.as_string(self.conn))
+
+        full_name = f"{schema}.{table_name}" if schema else table_name
+        self._log_info(f"Table '{full_name}' truncated")
     
-    def vacuum(self, table_name: str = None, full: bool = False, analyze: bool = True):
+    def vacuum(
+        self,
+        table_name: Optional[str] = None,
+        full: bool = False,
+        analyze: bool = True
+    ) -> None:
         """
         Vacuum database or table.
-        
+
         Args:
-            table_name: Name of the table (None for entire database)
-            full: If True, perform VACUUM FULL (more thorough but slower)
-            analyze: If True, update statistics
+            table_name: Name of the table (None for entire database).
+            full: If True, perform VACUUM FULL (more thorough but slower).
+            analyze: If True, update statistics.
         """
         # Vacuum requires autocommit
         old_autocommit = self.conn.autocommit
         self.conn.autocommit = True
-        
-        query_parts = ["VACUUM"]
+
+        query_parts = [sql.SQL("VACUUM")]
         if full:
-            query_parts.append("FULL")
+            query_parts.append(sql.SQL("FULL"))
         if analyze:
-            query_parts.append("ANALYZE")
+            query_parts.append(sql.SQL("ANALYZE"))
         if table_name:
-            query_parts.append(table_name)
-        
-        query = " ".join(query_parts)
-        self.execute(query)
-        
+            query_parts.append(sql.Identifier(table_name))
+
+        query = sql.SQL(" ").join(query_parts)
+        self.execute(query.as_string(self.conn))
+
         self.conn.autocommit = old_autocommit
-        self.logger.info(f"Vacuum completed")
+        self._log_info("Vacuum completed")
 
 
 # Utility functions

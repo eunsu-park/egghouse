@@ -1,63 +1,126 @@
+"""
+AIA (Atmospheric Imaging Assembly) utilities for SDO data.
+
+This module provides intensity scaling and normalization functions
+for SDO/AIA images across different wavelength channels.
+"""
+
+from typing import Dict, Any
 import numpy as np
 from ..image import bytescale_image
 
 
-def aia_intscale(image, exptime=None, wavelnth=None, bytescale=False):
+# AIA wavelength calibration factors
+# Reference: Boerner et al. 2012, Solar Physics
+AIA_CALIBRATION: Dict[int, Dict[str, Any]] = {
+    94:   {'norm_exptime': 4.99803, 'vmin': 1.5/1.06,   'vmax': 50/1.06,    'scale': 'sqrt'},
+    131:  {'norm_exptime': 6.99685, 'vmin': 7.0/1.49,   'vmax': 1200/1.49,  'scale': 'log'},
+    171:  {'norm_exptime': 4.99803, 'vmin': 10.0/1.49,  'vmax': 6000/1.49,  'scale': 'sqrt'},
+    193:  {'norm_exptime': 2.9995,  'vmin': 120.0/2.2,  'vmax': 6000.0/2.2, 'scale': 'log'},
+    211:  {'norm_exptime': 4.99801, 'vmin': 30.0/1.10,  'vmax': 13000/1.10, 'scale': 'log'},
+    304:  {'norm_exptime': 4.99941, 'vmin': 50.0/12.11, 'vmax': 2000/12.11, 'scale': 'log'},
+    335:  {'norm_exptime': 6.99734, 'vmin': 3.5/2.97,   'vmax': 1000/2.97,  'scale': 'log'},
+    1600: {'norm_exptime': 2.99911, 'vmin': -8,         'vmax': 200,        'scale': 'linear'},
+    1700: {'norm_exptime': 1.00026, 'vmin': 0,          'vmax': 2500,       'scale': 'linear'},
+    4500: {'norm_exptime': 1.00026, 'vmin': 0,          'vmax': 26000,      'scale': 'linear'},
+}
 
-    image[np.isnan(image)] = 0.
 
-    wavelnth = np.rint(wavelnth)
-    
-    if wavelnth == 94 :
-        vmin, vmax = 1.5 / 1.06, 50 / 1.06
-        temp = image * (4.99803 / exptime)
+def aia_intscale(
+    image: np.ndarray,
+    exptime: float,
+    wavelnth: int,
+    to_bytescale: bool = True
+) -> np.ndarray:
+    """
+    Apply AIA intensity scaling for visualization.
 
-    elif wavelnth == 131 :
-        vmin, vmax = 7.0 / 1.49, 1200 / 1.49
-        temp = image * (6.99685 / exptime)
+    Normalizes the image by exposure time and applies wavelength-specific
+    scaling (linear, sqrt, or log) for optimal visualization.
 
-    elif wavelnth == 171 :
-        vmin, vmax = 10.0 / 1.49, 6000 / 1.49
-        temp = image * (4.99803 / exptime)
+    Args:
+        image: Input AIA image array.
+        exptime: Exposure time in seconds (from FITS header EXPTIME).
+        wavelnth: Wavelength in Angstroms (94, 131, 171, 193, 211, 304, 335, 1600, 1700, 4500).
+        to_bytescale: If True, return uint8 [0-255]. If False, return scaled float.
 
-    elif wavelnth == 193 :
-        vmin, vmax = 120.0 / 2.2, 6000.0 / 2.2
-        temp = image * (2.9995 / exptime)
+    Returns:
+        Scaled image array (uint8 if to_bytescale=True, float64 otherwise).
 
-    elif wavelnth == 211 :
-        vmin, vmax = 30.0 / 1.10, 13000 / 1.10
-        temp = image * (4.99801 / exptime)
+    Raises:
+        ValueError: If wavelength is not supported.
 
-    elif wavelnth == 304 :
-        vmin, vmax = 50.0 / 12.11, 2000 / 12.11
-        temp = image * (4.99941 / exptime)
+    Example:
+        >>> from astropy.io import fits
+        >>> hdu = fits.open('aia_171.fits')[0]
+        >>> scaled = aia_intscale(hdu.data, hdu.header['EXPTIME'], 171)
+    """
+    wavelnth = int(np.rint(wavelnth))
 
-    elif wavelnth == 335 :
-        vmin, vmax = 3.5 / 2.97, 1000 / 2.97
-        temp = image * (6.99734 / exptime)
+    if wavelnth not in AIA_CALIBRATION:
+        raise ValueError(
+            f"Unsupported wavelength: {wavelnth}. "
+            f"Supported wavelengths: {list(AIA_CALIBRATION.keys())}"
+        )
 
-    elif wavelnth == 1600 :
-        vmin, vmax = -8, 200
-        temp = image * (2.99911 / exptime)
+    cal = AIA_CALIBRATION[wavelnth]
+    vmin = cal['vmin']
+    vmax = cal['vmax']
+    norm_exptime = cal['norm_exptime']
+    scale_method = cal['scale']
 
-    elif wavelnth == 1700 :
-        vmin, vmax = 0, 2500
-        temp = image * (1.00026 / exptime)
+    # Handle NaN values
+    image = np.asarray(image, dtype=np.float64)
+    image = np.nan_to_num(image, nan=0.0)
 
-    elif wavelnth == 4500 :
-        vmin, vmax = 0, 26000
-        temp = image * (1.00026 / exptime)
+    # Normalize by exposure time
+    normalized = image * (norm_exptime / exptime)
 
-    elif wavelnth == 6173 :
-        vmin, vmax = 0, 65535
-        temp = image / exptime
+    # Clip to valid range
+    clipped = np.clip(normalized, vmin, vmax)
 
-    temp = np.clip(temp, vmin, vmax)
-    if wavelnth in (94, 171) :
-        scaled = bytescale_image(np.sqrt(temp), np.sqrt(vmin), np.sqrt(vmax))
-    elif wavelnth in (131, 193, 211, 304, 335) :
-        scaled = bytescale_image(np.log10(temp), np.log10(vmin), np.log10(vmax))
-    elif wavelnth in (1600, 1700, 4500, 6173):
-        scaled = bytescale_image(temp, vmin, vmax)
+    # Apply scaling transformation
+    if scale_method == 'sqrt':
+        transformed = np.sqrt(clipped)
+        t_vmin, t_vmax = np.sqrt(vmin), np.sqrt(vmax)
+    elif scale_method == 'log':
+        # Ensure positive values for log
+        clipped = np.clip(clipped, max(vmin, 1e-10), vmax)
+        transformed = np.log10(clipped)
+        t_vmin, t_vmax = np.log10(max(vmin, 1e-10)), np.log10(vmax)
+    else:  # linear
+        transformed = clipped
+        t_vmin, t_vmax = vmin, vmax
 
-    return scaled
+    if to_bytescale:
+        return bytescale_image(transformed, t_vmin, t_vmax)
+    else:
+        return transformed
+
+
+def get_aia_calibration(wavelnth: int) -> Dict[str, Any]:
+    """
+    Get calibration parameters for a specific AIA wavelength.
+
+    Args:
+        wavelnth: Wavelength in Angstroms.
+
+    Returns:
+        Dictionary with calibration parameters (norm_exptime, vmin, vmax, scale).
+
+    Raises:
+        ValueError: If wavelength is not supported.
+
+    Example:
+        >>> cal = get_aia_calibration(171)
+        >>> print(f"Scale method: {cal['scale']}")
+    """
+    wavelnth = int(np.rint(wavelnth))
+
+    if wavelnth not in AIA_CALIBRATION:
+        raise ValueError(
+            f"Unsupported wavelength: {wavelnth}. "
+            f"Supported wavelengths: {list(AIA_CALIBRATION.keys())}"
+        )
+
+    return AIA_CALIBRATION[wavelnth].copy()
