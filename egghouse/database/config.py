@@ -7,9 +7,11 @@ Supports multiple configuration methods:
 3. Direct dictionary
 """
 
-import os
 import json
-from typing import Dict, Any, Optional
+import os
+from typing import Any, Dict, Optional
+
+import yaml
 
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
@@ -17,7 +19,7 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     Load database configuration from file or environment.
 
     Priority (highest to lowest):
-    1. Environment variables
+    1. Environment variables (DB_*)
     2. Config file (YAML/JSON)
     3. Default values
 
@@ -25,131 +27,170 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         config_path: Path to config file (YAML or JSON).
 
     Returns:
-        Configuration dictionary.
+        Configuration dictionary with 'database' key.
 
     Example:
         >>> config = load_config('config.yaml')
         >>> db = PostgresManager(**config['database'])
-    """
-    config: Dict[str, Any] = {}
 
-    # 1. Load from file if provided
+        >>> # Using environment variables:
+        >>> # DB_HOST=myserver DB_PORT=5432 DB_NAME=mydb DB_USER=user DB_PASSWORD=pass
+        >>> config = load_config()
+        >>> db = PostgresManager(**config['database'])
+    """
+    # Load base config from file
+    file_config: Dict[str, Any] = {}
     if config_path:
-        config = _load_from_file(config_path)
+        file_config = _load_file(config_path)
 
-    # 2. Override with environment variables
-    env_config = _load_from_env()
-    if env_config:
-        config.setdefault('database', {})
-        config['database'].update(env_config)
+    # Get database section or use root
+    db_config = file_config.get('database', file_config)
 
-    # 3. Add defaults
-    config = _add_defaults(config)
+    # Load from environment variables
+    env_config = _load_env()
 
-    return config
+    # Merge: env overrides file
+    merged = _merge(db_config, env_config)
 
-
-def _load_from_file(file_path: str) -> Dict[str, Any]:
-    """
-    Load configuration from YAML or JSON file.
-
-    Args:
-        file_path: Path to the configuration file.
-
-    Returns:
-        Configuration dictionary.
-
-    Raises:
-        FileNotFoundError: If config file does not exist.
-        ImportError: If PyYAML is not installed for YAML files.
-        ValueError: If file format is not supported.
-    """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Config file not found: {file_path}")
-
-    with open(file_path, 'r') as f:
-        if file_path.endswith('.yaml') or file_path.endswith('.yml'):
-            try:
-                import yaml
-                return yaml.safe_load(f) or {}
-            except ImportError:
-                raise ImportError(
-                    "PyYAML is required for YAML config files. "
-                    "Install it with: pip install pyyaml"
-                )
-        elif file_path.endswith('.json'):
-            return json.load(f)
-        else:
-            raise ValueError(f"Unsupported config file format: {file_path}")
-
-
-def _load_from_env() -> Dict[str, Any]:
-    """
-    Load database configuration from environment variables.
-
-    Supported environment variables:
-        DB_HOST, DB_PORT, DB_NAME/DB_DATABASE, DB_USER, DB_PASSWORD, DB_LOG_QUERIES
-
-    Returns:
-        Configuration dictionary with values from environment.
-
-    Raises:
-        ValueError: If DB_PORT is not a valid integer.
-    """
-    env_config: Dict[str, Any] = {}
-
-    # Database connection
-    if os.getenv('DB_HOST'):
-        env_config['host'] = os.getenv('DB_HOST')
-
-    if os.getenv('DB_PORT'):
-        port_str = os.getenv('DB_PORT')
-        try:
-            env_config['port'] = int(port_str)  # type: ignore
-        except ValueError:
-            raise ValueError(
-                f"Invalid DB_PORT value: '{port_str}'. Must be an integer."
-            )
-
-    if os.getenv('DB_NAME') or os.getenv('DB_DATABASE'):
-        env_config['database'] = os.getenv('DB_NAME') or os.getenv('DB_DATABASE')
-
-    if os.getenv('DB_USER'):
-        env_config['user'] = os.getenv('DB_USER')
-
-    if os.getenv('DB_PASSWORD'):
-        env_config['password'] = os.getenv('DB_PASSWORD')
-
-    # Logging
-    if os.getenv('DB_LOG_QUERIES'):
-        env_config['log_queries'] = os.getenv('DB_LOG_QUERIES', '').lower() == 'true'
-
-    return env_config
-
-
-def _add_defaults(config: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Add default values to configuration.
-
-    Args:
-        config: Configuration dictionary to update.
-
-    Returns:
-        Configuration dictionary with defaults applied.
-    """
-    config.setdefault('database', {})
-
+    # Apply defaults
     defaults = {
         'host': 'localhost',
         'port': 5432,
         'log_queries': False
     }
-
     for key, value in defaults.items():
-        if key not in config['database']:
-            config['database'][key] = value
+        if key not in merged:
+            merged[key] = value
+
+    return {'database': merged}
+
+
+def _load_file(path: str) -> Dict[str, Any]:
+    """
+    Load configuration from YAML or JSON file.
+
+    Args:
+        path: Path to configuration file.
+
+    Returns:
+        Configuration dictionary.
+
+    Raises:
+        FileNotFoundError: If file doesn't exist.
+        ValueError: If file format is not supported.
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Config file not found: {path}")
+
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Determine format by extension
+    ext = os.path.splitext(path)[1].lower()
+
+    if ext in ('.yaml', '.yml'):
+        return yaml.safe_load(content) or {}
+    elif ext == '.json':
+        return json.loads(content)
+    else:
+        # Try YAML first, then JSON
+        try:
+            return yaml.safe_load(content) or {}
+        except yaml.YAMLError:
+            try:
+                return json.loads(content)
+            except json.JSONDecodeError:
+                raise ValueError(f"Unsupported config format: {ext}")
+
+
+def _load_env() -> Dict[str, Any]:
+    """
+    Load configuration from environment variables.
+
+    Environment variables are matched by DB_ prefix and converted to
+    lowercase keys. For example:
+    - DB_HOST -> {'host': value}
+    - DB_PORT -> {'port': value}
+
+    Returns:
+        Configuration dictionary from environment variables.
+    """
+    config: Dict[str, Any] = {}
+    env_prefix = "DB_"
+
+    type_hints = {
+        'port': int,
+        'log_queries': bool
+    }
+
+    for key, value in os.environ.items():
+        if key.startswith(env_prefix):
+            # Remove prefix and convert to lowercase
+            config_key = key[len(env_prefix):].lower()
+
+            # Handle special case for 'name' vs 'database'
+            if config_key == 'name':
+                config_key = 'database'
+
+            # Convert type if hint provided
+            config[config_key] = _convert_type(config_key, value, type_hints)
 
     return config
+
+
+def _convert_type(key: str, value: str, type_hints: Dict[str, type]) -> Any:
+    """
+    Convert string value to appropriate type based on type hints.
+
+    Args:
+        key: Configuration key.
+        value: String value from environment or file.
+        type_hints: Dict mapping keys to types.
+
+    Returns:
+        Converted value.
+    """
+    target_type = type_hints.get(key)
+
+    if target_type is None:
+        return value
+
+    if target_type == int:
+        return int(value)
+    elif target_type == float:
+        return float(value)
+    elif target_type == bool:
+        return value.lower() in ('true', '1', 'yes', 'on')
+    elif target_type == list:
+        return [v.strip() for v in value.split(',')]
+    else:
+        return value
+
+
+def _merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Deep merge override dictionary into base dictionary.
+
+    Args:
+        base: Base configuration dictionary.
+        override: Dictionary with values to override.
+
+    Returns:
+        Merged dictionary.
+    """
+    result = base.copy()
+
+    for key, value in override.items():
+        if (
+            key in result and
+            isinstance(result[key], dict) and
+            isinstance(value, dict)
+        ):
+            result[key] = _merge(result[key], value)
+        else:
+            result[key] = value
+
+    return result
 
 
 def from_dict(config_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -205,14 +246,6 @@ def create_example_config(output_path: str = 'config.example.yaml') -> None:
         }
     }
 
-    try:
-        import yaml
-        with open(output_path, 'w') as f:
-            yaml.dump(example_config, f, default_flow_style=False, sort_keys=False)
-        print(f"Example config created: {output_path}")
-    except ImportError:
-        # Fallback to JSON if YAML not available
-        output_path = output_path.replace('.yaml', '.json').replace('.yml', '.json')
-        with open(output_path, 'w') as f:
-            json.dump(example_config, f, indent=2)
-        print(f"Example config created: {output_path}")
+    with open(output_path, 'w') as f:
+        yaml.dump(example_config, f, default_flow_style=False, sort_keys=False)
+    print(f"Example config created: {output_path}")
