@@ -27,15 +27,74 @@ except ImportError:
 # Constants
 # =============================================================================
 
-# Standard plate scales (arcsec/pixel)
+# Standard plate scale (arcsec/pixel) - unified for both AIA and HMI
 AIA_PLATE_SCALE = 0.6
-HMI_PLATE_SCALE = 0.5
+HMI_PLATE_SCALE = 0.6  # Same as AIA for unified Level 1.5 output
 
 # Standard SDO image size
 SDO_IMAGE_SIZE = 4096
 
 # Type alias for progress callback
 ProgressCallback = Callable[[int, int, str], None]
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def _crop_or_pad_map(m: "Map", target_size: int, missing: float = 0.0) -> "Map":
+    """
+    Crop or pad a Map to target size while keeping sun centered.
+
+    Args:
+        m: Input sunpy Map.
+        target_size: Target size in pixels.
+        missing: Fill value for padding. Defaults to 0.0.
+
+    Returns:
+        Map with target_size x target_size dimensions.
+    """
+    data = m.data
+    current_y, current_x = data.shape
+
+    if current_y == target_size and current_x == target_size:
+        return m
+
+    if current_y > target_size or current_x > target_size:
+        # Crop: extract center region
+        start_y = (current_y - target_size) // 2
+        start_x = (current_x - target_size) // 2
+        # Handle edge cases where one dimension might be smaller
+        start_y = max(0, start_y)
+        start_x = max(0, start_x)
+        end_y = min(current_y, start_y + target_size)
+        end_x = min(current_x, start_x + target_size)
+        cropped_data = data[start_y:end_y, start_x:end_x]
+
+        # If still not target size, pad the remaining
+        if cropped_data.shape != (target_size, target_size):
+            new_data = np.full((target_size, target_size), missing, dtype=data.dtype)
+            pad_y = (target_size - cropped_data.shape[0]) // 2
+            pad_x = (target_size - cropped_data.shape[1]) // 2
+            new_data[pad_y:pad_y + cropped_data.shape[0],
+                     pad_x:pad_x + cropped_data.shape[1]] = cropped_data
+        else:
+            new_data = cropped_data
+    else:
+        # Pad: add border
+        pad_y = (target_size - current_y) // 2
+        pad_x = (target_size - current_x) // 2
+        new_data = np.full((target_size, target_size), missing, dtype=data.dtype)
+        new_data[pad_y:pad_y + current_y, pad_x:pad_x + current_x] = data
+
+    # Create new Map with updated data
+    new_meta = m.meta.copy()
+    new_meta['NAXIS1'] = target_size
+    new_meta['NAXIS2'] = target_size
+    new_meta['CRPIX1'] = (target_size + 1) / 2.0
+    new_meta['CRPIX2'] = (target_size + 1) / 2.0
+
+    return Map(new_data, new_meta)
 
 
 # =============================================================================
@@ -48,24 +107,24 @@ def to_level15(
     target_plate_scale: Optional[float] = None,
     target_size: int = SDO_IMAGE_SIZE,
     order: int = 3,
-    missing: float = np.nan
+    missing: float = 0.0
 ) -> "Map":
     """
     Convert Level 1.0 FITS file to Level 1.5.
 
     Level 1.5 processing includes:
     1. Rotation to align solar north with image up (CROTA2 → 0)
-    2. Resampling to standard plate scale (0.6 arcsec/px for AIA, 0.5 for HMI)
-    3. Resizing to 4096x4096 fixed output
+    2. Resampling to standard plate scale (0.6 arcsec/px for both AIA and HMI)
+    3. Padding with zeros to 4096x4096 fixed output
 
     Args:
         fits_file: Path to Level 1.0 FITS file.
-        instrument: 'AIA' or 'HMI'. Determines default plate scale.
+        instrument: 'AIA' or 'HMI'. Both use 0.6 arcsec/px plate scale.
         target_plate_scale: Override default plate scale (arcsec/pixel).
-            If None, uses 0.6 for AIA or 0.5 for HMI.
+            If None, uses 0.6 for both AIA and HMI.
         target_size: Output image size in pixels. Defaults to 4096.
         order: Interpolation order (0-5). Defaults to 3 (bicubic).
-        missing: Fill value for missing/rotated pixels. Defaults to NaN.
+        missing: Fill value for padding. Defaults to 0.0.
 
     Returns:
         sunpy.map.Map object with Level 1.5 properties:
@@ -121,20 +180,28 @@ def to_level15(
     else:
         m_rotated = m
 
-    # Step 2: Resample to target size
-    m_resampled = m_rotated.resample([target_size, target_size] * u.pix)
+    # Step 2: Resample to target plate scale
+    # Calculate the scale factor needed to match target plate scale
+    current_cdelt = abs(m_rotated.meta.get('CDELT1', target_plate_scale))
+    scale_factor = current_cdelt / target_plate_scale
 
-    # Step 3: Update metadata
-    # Calculate new plate scale based on resampling
-    original_fov_x = abs(m.meta.get('CDELT1', 0.6)) * m.data.shape[1]
-    original_fov_y = abs(m.meta.get('CDELT2', 0.6)) * m.data.shape[0]
-    new_cdelt1 = original_fov_x / target_size
-    new_cdelt2 = original_fov_y / target_size
+    # Resample to match the target plate scale
+    if abs(scale_factor - 1.0) > 0.01:
+        new_shape = [
+            int(m_rotated.data.shape[0] * scale_factor),
+            int(m_rotated.data.shape[1] * scale_factor)
+        ]
+        m_scaled = m_rotated.resample(new_shape * u.pix)
+    else:
+        m_scaled = m_rotated
 
-    # Update header values
+    # Step 3: Crop or pad to target size (4096x4096)
+    m_resampled = _crop_or_pad_map(m_scaled, target_size, missing)
+
+    # Step 4: Update metadata with fixed plate scale
     m_resampled.meta['CROTA2'] = 0.0
-    m_resampled.meta['CDELT1'] = new_cdelt1
-    m_resampled.meta['CDELT2'] = new_cdelt2
+    m_resampled.meta['CDELT1'] = target_plate_scale
+    m_resampled.meta['CDELT2'] = target_plate_scale
     m_resampled.meta['CRPIX1'] = (target_size + 1) / 2.0
     m_resampled.meta['CRPIX2'] = (target_size + 1) / 2.0
     m_resampled.meta['NAXIS1'] = target_size
