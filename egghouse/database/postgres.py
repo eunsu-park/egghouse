@@ -766,7 +766,104 @@ class PostgresManager:
         with self._cursor(dict_cursor=False) as cursor:
             cursor.execute(query.as_string(self.conn), tuple(params))
             return cursor.rowcount
-    
+
+    def upsert(
+        self,
+        table_name: str,
+        data: Union[Dict, List[Dict]],
+        conflict_columns: Union[str, List[str]],
+        update_columns: Optional[List[str]] = None,
+        schema: Optional[str] = None
+    ) -> int:
+        """
+        Insert row(s) or update on conflict (INSERT ON CONFLICT DO UPDATE).
+
+        Args:
+            table_name: Name of the table.
+            data: Dictionary or list of dictionaries with column:value pairs.
+            conflict_columns: Column(s) for conflict detection (must have unique constraint).
+            update_columns: Columns to update on conflict. If None, updates all columns
+                          except conflict_columns.
+            schema: Schema name (optional).
+
+        Returns:
+            Number of affected rows.
+
+        Example:
+            >>> # Single row upsert
+            >>> db.upsert('observations',
+            ...           {'filepath': '/data/aia.fits', 'wavelength': 171, 'processed': True},
+            ...           conflict_columns='filepath',
+            ...           update_columns=['processed'])
+
+            >>> # Multi-row upsert
+            >>> db.upsert('observations',
+            ...           [{'filepath': f1, 'status': 'done'}, {'filepath': f2, 'status': 'done'}],
+            ...           conflict_columns='filepath')
+
+            >>> # Composite key
+            >>> db.upsert('data',
+            ...           {'date': '2024-01-01', 'wavelength': 171, 'count': 10},
+            ...           conflict_columns=['date', 'wavelength'])
+        """
+        table_id = self._build_table_identifier(table_name, schema)
+
+        # Handle single dictionary
+        if isinstance(data, dict):
+            data = [data]
+
+        if not data:
+            self.logger.warning("No data to upsert")
+            return 0
+
+        # Normalize conflict_columns to list
+        if isinstance(conflict_columns, str):
+            conflict_columns = [conflict_columns]
+
+        # Get columns from first record
+        columns = list(data[0].keys())
+
+        # Determine update columns
+        if update_columns is None:
+            update_columns = [col for col in columns if col not in conflict_columns]
+
+        if not update_columns:
+            self.logger.warning("No columns to update on conflict")
+            return 0
+
+        # Build SQL components
+        columns_sql = sql.SQL(", ").join([sql.Identifier(col) for col in columns])
+        placeholders = sql.SQL(", ").join([sql.Placeholder()] * len(columns))
+        conflict_sql = sql.SQL(", ").join([sql.Identifier(col) for col in conflict_columns])
+
+        # Build SET clause for ON CONFLICT DO UPDATE
+        update_parts = [
+            sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(col), sql.Identifier(col))
+            for col in update_columns
+        ]
+        update_sql = sql.SQL(", ").join(update_parts)
+
+        # Build query
+        query = sql.SQL(
+            "INSERT INTO {} ({}) VALUES ({}) "
+            "ON CONFLICT ({}) DO UPDATE SET {}"
+        ).format(table_id, columns_sql, placeholders, conflict_sql, update_sql)
+
+        query_str = query.as_string(self.conn)
+
+        # Prepare values
+        values = [tuple(record[col] for col in columns) for record in data]
+
+        total_affected = 0
+        with self._cursor(dict_cursor=False) as cursor:
+            for val in values:
+                cursor.execute(query_str, val)
+                total_affected += cursor.rowcount
+
+        full_name = f"{schema}.{table_name}" if schema else table_name
+        self._log_info(f"Upserted {len(values)} rows into '{full_name}' ({total_affected} affected)")
+        return total_affected
+
     # ==================== Utility Operations ====================
     
     def count(
