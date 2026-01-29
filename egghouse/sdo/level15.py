@@ -42,6 +42,23 @@ ProgressCallback = Callable[[int, int, str], None]
 # Helper Functions
 # =============================================================================
 
+def _detect_instrument(meta: dict) -> Literal['AIA', 'HMI']:
+    """
+    Detect instrument type from FITS header metadata.
+
+    Args:
+        meta: FITS header metadata dictionary.
+
+    Returns:
+        'AIA' or 'HMI' based on INSTRUME header keyword.
+        Defaults to 'AIA' if not detected.
+    """
+    instrume = str(meta.get('INSTRUME', '')).upper()
+    if 'HMI' in instrume:
+        return 'HMI'
+    return 'AIA'
+
+
 def _crop_or_pad_map(m: "Map", target_size: int, missing: float = 0.0) -> "Map":
     """
     Crop or pad a Map to target size while keeping sun centered.
@@ -103,7 +120,7 @@ def _crop_or_pad_map(m: "Map", target_size: int, missing: float = 0.0) -> "Map":
 
 def to_level15(
     fits_file: str,
-    instrument: Literal['AIA', 'HMI'] = 'AIA',
+    instrument: Optional[Literal['AIA', 'HMI']] = None,
     target_plate_scale: Optional[float] = None,
     target_size: int = SDO_IMAGE_SIZE,
     order: int = 3,
@@ -119,7 +136,8 @@ def to_level15(
 
     Args:
         fits_file: Path to Level 1.0 FITS file.
-        instrument: 'AIA' or 'HMI'. Both use 0.6 arcsec/px plate scale.
+        instrument: 'AIA' or 'HMI'. If None, auto-detected from FITS header.
+            Both use 0.6 arcsec/px plate scale.
         target_plate_scale: Override default plate scale (arcsec/pixel).
             If None, uses 0.6 for both AIA and HMI.
         target_size: Output image size in pixels. Defaults to 4096.
@@ -139,12 +157,12 @@ def to_level15(
 
     Example:
         >>> from egghouse.sdo import to_level15
-        >>> # Convert AIA 171 image
-        >>> m = to_level15('aia_171.fits', instrument='AIA')
+        >>> # Auto-detect instrument from FITS header
+        >>> m = to_level15('aia_171.fits')
         >>> assert m.meta['CROTA2'] == 0.0
         >>> assert m.data.shape == (4096, 4096)
 
-        >>> # Convert HMI magnetogram
+        >>> # Explicit instrument specification
         >>> m_hmi = to_level15('hmi_m.fits', instrument='HMI')
     """
     if not HAS_SUNPY:
@@ -156,14 +174,18 @@ def to_level15(
     if not os.path.exists(fits_file):
         raise FileNotFoundError(f"FITS file not found: {fits_file}")
 
-    # Determine target plate scale
-    if target_plate_scale is None:
-        target_plate_scale = AIA_PLATE_SCALE if instrument == 'AIA' else HMI_PLATE_SCALE
-
     # Load FITS file
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore')
         m = Map(fits_file)
+
+    # Auto-detect instrument if not specified
+    if instrument is None:
+        instrument = _detect_instrument(m.meta)
+
+    # Determine target plate scale
+    if target_plate_scale is None:
+        target_plate_scale = AIA_PLATE_SCALE if instrument == 'AIA' else HMI_PLATE_SCALE
 
     # Get current rotation angle
     crota2 = m.meta.get('CROTA2', 0.0)
@@ -214,7 +236,7 @@ def to_level15(
 def batch_to_level15(
     fits_files: List[str],
     output_dir: str,
-    instrument: Literal['AIA', 'HMI'] = 'AIA',
+    instrument: Optional[Literal['AIA', 'HMI']] = None,
     overwrite: bool = False,
     progress_callback: Optional[ProgressCallback] = None,
     **kwargs
@@ -225,7 +247,7 @@ def batch_to_level15(
     Args:
         fits_files: List of paths to Level 1.0 FITS files.
         output_dir: Directory to save Level 1.5 FITS files.
-        instrument: 'AIA' or 'HMI'. Determines default plate scale.
+        instrument: 'AIA' or 'HMI'. If None, auto-detected per file from FITS header.
         overwrite: If True, overwrite existing output files.
         progress_callback: Optional callback(current, total, message) for progress.
         **kwargs: Additional arguments passed to to_level15().
@@ -240,7 +262,7 @@ def batch_to_level15(
     Example:
         >>> from egghouse.sdo import batch_to_level15
         >>> files = ['aia_001.fits', 'aia_002.fits', 'aia_003.fits']
-        >>> output_files = batch_to_level15(files, '/output/', instrument='AIA')
+        >>> output_files = batch_to_level15(files, '/output/')
     """
     if not HAS_SUNPY:
         raise ImportError(
