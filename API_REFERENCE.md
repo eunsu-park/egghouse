@@ -2,6 +2,15 @@
 
 Complete list of all public functions, classes, and constants in egghouse.
 
+**Detailed Usage Guides:** See [docs/](docs/) folder for module-specific guides.
+
+- [io_guide.md](docs/io_guide.md) - FITS, BMP file I/O
+- [image_guide.md](docs/image_guide.md) - Image processing utilities
+- [sdo_guide.md](docs/sdo_guide.md) - SDO/AIA/HMI data processing
+- [config_guide.md](docs/config_guide.md) - Configuration management
+- [database_guide.md](docs/database_guide.md) - PostgreSQL utilities
+- [transfer_guide.md](docs/transfer_guide.md) - HTTP file downloads
+
 ---
 
 ## egghouse.io
@@ -16,6 +25,13 @@ File I/O utilities for scientific data formats.
 | `write_fits` | `(filepath, data, header=None, overwrite=False) -> None` | Write numpy array to FITS |
 | `read_fits_header` | `(filepath, hdu_index=0) -> dict` | Read header only (no data loading) |
 | `append_fits` | `(filepath, data, header=None) -> None` | Append HDU extension to existing FITS |
+
+### FITS (pure numpy, no dependencies)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `read_fits_simple` | `(filepath, hdu_index=0, apply_scaling=True) -> Tuple[ndarray, dict]` | Read FITS image HDU (Primary or Extension) |
+| `read_fits_header_simple` | `(filepath, hdu_index=0) -> dict` | Read header only (no data loading) |
 
 ### BMP (no external dependencies)
 
@@ -35,19 +51,57 @@ File I/O utilities for scientific data formats.
 
 ## egghouse.image
 
-Generic image processing utilities.
+Generic image processing utilities. Organized into submodules:
+- `core` - Basic transformations
+- `masking` - Circle and annulus masks
+- `spatial` - Padding, cropping, flipping
+- `filters` - Gaussian, median, edge detection
+- `stats` - Normalization, histogram, statistics
 
-### Functions
+### Core
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `resize_image` | `(image, size, order=1, preserve_range=True) -> ndarray` | Resize image to (height, width), preserves dtype |
 | `rotate_image` | `(image, angle, order=1, reshape=False, cval=0, preserve_range=True) -> ndarray` | Rotate image by angle (degrees) |
 | `bytescale_image` | `(data, imin=None, imax=None, omin=0, omax=255) -> ndarray` | Scale to uint8 [omin, omax] |
+
+### Masking
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
 | `circle_mask` | `(image_size, radius, center=None, mask_type='inner') -> ndarray` | Circular boolean mask |
 | `annulus_mask` | `(image_size, inner_radius, outer_radius, center=None) -> ndarray` | Ring-shaped boolean mask |
+
+### Spatial
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
 | `pad_image` | `(data, target_size, pad_value=0, center=True) -> ndarray` | Pad image to target size |
 | `crop_or_pad` | `(data, target_size, pad_value=0, center=True) -> ndarray` | Crop or pad to exact target size |
+| `flip_image` | `(image, axis='vertical') -> ndarray` | Flip image ('vertical', 'horizontal', 'both') |
+| `roll_image` | `(image, shift_y, shift_x) -> ndarray` | Cyclic roll image by (shift_y, shift_x) |
+
+### Filters
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `gaussian_smooth` | `(image, sigma=1.0, preserve_range=True) -> ndarray` | Gaussian smoothing filter |
+| `median_denoise` | `(image, size=3, preserve_range=True) -> ndarray` | Median filter for noise removal |
+| `laplacian_edge` | `(image, mode='reflect') -> ndarray` | Laplacian edge detection (2nd derivative) |
+| `sobel_edge` | `(image, axis=None, mode='reflect') -> ndarray` | Sobel edge detection (gradient) |
+| `unsharp_mask` | `(image, sigma=1.0, amount=1.0, preserve_range=True) -> ndarray` | Sharpen image via unsharp masking |
+
+### Stats
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `normalize_image` | `(image, mean=None, std=None) -> ndarray` | Z-score normalization (mean=0, std=1) |
+| `get_image_stats` | `(image, mask=None, percentiles=...) -> dict` | Compute image statistics (mean, std, min, max, percentiles) |
+| `histogram_equalization` | `(image, nbins=256) -> ndarray` | Enhance contrast via histogram equalization |
+| `percentile_scale` | `(image, low=1.0, high=99.0, omin=0, omax=255) -> ndarray` | Scale using percentile clipping |
+| `find_disk_center` | `(image, threshold=None, method='centroid') -> Tuple[float, float]` | Find bright disk center (cy, cx) |
+| `adaptive_threshold` | `(image, block_size=35, offset=0.0) -> ndarray` | Adaptive binarization for uneven illumination |
 
 ### Aliases
 
@@ -106,6 +160,16 @@ SDO/AIA and SDO/HMI data processing utilities.
 | `detect_cadence_from_maps` | `(maps) -> float` | Detect time cadence from Map sequence |
 | `cross_correlate_shift` | `(ref, target, ...) -> Tuple[float, float]` | Sub-pixel shift via phase correlation |
 
+### Quality
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `decode_quality` | `(quality, instrument='AIA') -> List[dict]` | Decode QUALITY flag into list of issues |
+| `format_quality` | `(quality, instrument='AIA', verbose=True) -> str` | Format QUALITY flag as readable string |
+| `is_quality_ok` | `(quality, strict=False, ignore_bits=None) -> bool` | Check if data quality is acceptable |
+| `get_quality_summary` | `(quality, instrument='AIA') -> dict` | Get structured quality summary |
+| `print_all_quality_bits` | `(instrument='AIA') -> None` | Print all quality bit definitions |
+
 ### Constants
 
 | Name | Value | Description |
@@ -120,6 +184,9 @@ SDO/AIA and SDO/HMI data processing utilities.
 | `HMI_CADENCE_45S` | 45.0 | HMI 45-second cadence |
 | `HMI_CADENCE_720S` | 720.0 | HMI 720-second cadence |
 | `AIA_CALIBRATION` | dict | AIA wavelength calibration data |
+| `AIA_QUALITY_BITS` | dict | AIA QUALITY bit definitions |
+| `HMI_QUALITY_BITS` | dict | HMI QUALITY bit definitions |
+| `QUALLEV0_BITS` | dict | Level 0 quality bit definitions |
 | `HAS_ASTROPY` | bool | True if astropy available |
 | `HAS_SUNPY` | bool | True if sunpy available |
 

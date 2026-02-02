@@ -9,6 +9,7 @@ Modules:
     core: Common utilities for SDO data (FITS parsing, validation).
     stacking: Solar rotation-corrected image stacking for HMI.
     level15: Level 1.0 to Level 1.5 preprocessing.
+    quality: QUALITY keyword interpretation utilities.
 """
 
 from .aia import aia_intscale, AIA_CALIBRATION, get_aia_calibration
@@ -49,6 +50,16 @@ from .stacking import (
     ProgressCallback,
     # Flags
     HAS_SUNPY,
+)
+from .quality import (
+    decode_quality,
+    format_quality,
+    is_quality_ok,
+    get_quality_summary,
+    print_all_quality_bits,
+    AIA_QUALITY_BITS,
+    HMI_QUALITY_BITS,
+    QUALLEV0_BITS,
 )
 
 __all__ = [
@@ -92,4 +103,14 @@ __all__ = [
     'ProgressCallback',
     # Stacking - Flags
     'HAS_SUNPY',
+    # Quality - Functions
+    'decode_quality',
+    'format_quality',
+    'is_quality_ok',
+    'get_quality_summary',
+    'print_all_quality_bits',
+    # Quality - Constants
+    'AIA_QUALITY_BITS',
+    'HMI_QUALITY_BITS',
+    'QUALLEV0_BITS',
 ]
