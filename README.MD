@@ -42,6 +42,10 @@ from egghouse.io import read_fits, write_fits
 data, header = read_fits('image.fits')
 write_fits('output.fits', data, overwrite=True)
 
+# astropy 없이 FITS 읽기 (pure numpy)
+from egghouse.io import read_fits_simple
+data, header = read_fits_simple('image.fits')
+
 # 2. 이미지 전처리 (resize, mask, scaling)
 from egghouse.image import resize_image, circle_mask, bytescale_image
 resized = resize_image(data, (1024, 1024))
@@ -215,9 +219,17 @@ password: password
 
 ---
 
-## API Reference
+## Documentation
 
-See [API_REFERENCE.md](API_REFERENCE.md) for complete function signatures and descriptions.
+**Detailed Guides** (in [docs/](docs/) folder):
+- [io_guide.md](docs/io_guide.md) - FITS, BMP file I/O
+- [image_guide.md](docs/image_guide.md) - Image processing utilities
+- [sdo_guide.md](docs/sdo_guide.md) - SDO/AIA/HMI data processing
+- [config_guide.md](docs/config_guide.md) - Configuration management
+- [database_guide.md](docs/database_guide.md) - PostgreSQL utilities
+- [transfer_guide.md](docs/transfer_guide.md) - HTTP file downloads
+
+**API Reference:** See [API_REFERENCE.md](API_REFERENCE.md) for complete function signatures.
 
 ---
 
