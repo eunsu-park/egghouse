@@ -10,6 +10,7 @@ Modules:
     stacking: Solar rotation-corrected image stacking for HMI.
     level15: Level 1.0 to Level 1.5 preprocessing.
     quality: QUALITY keyword interpretation utilities.
+    dem: DEM (Differential Emission Measure) analysis using SITES algorithm.
 """
 
 from .aia import aia_intscale, AIA_CALIBRATION, get_aia_calibration
@@ -60,6 +61,20 @@ from .quality import (
     AIA_QUALITY_BITS,
     HMI_QUALITY_BITS,
     QUALLEV0_BITS,
+)
+from .dem import (
+    # Response functions
+    get_temperature_response,
+    get_default_temperatures,
+    HAS_AIAPY,
+    # SITES algorithm
+    dem_sites,
+    dem_sites_pixel,
+    # Utilities
+    dem_map,
+    compute_dem_errors,
+    get_emission_measure,
+    get_mean_temperature,
 )
 
 __all__ = [
@@ -113,4 +128,16 @@ __all__ = [
     'AIA_QUALITY_BITS',
     'HMI_QUALITY_BITS',
     'QUALLEV0_BITS',
+    # DEM - Response functions
+    'get_temperature_response',
+    'get_default_temperatures',
+    'HAS_AIAPY',
+    # DEM - SITES algorithm
+    'dem_sites',
+    'dem_sites_pixel',
+    # DEM - Utilities
+    'dem_map',
+    'compute_dem_errors',
+    'get_emission_measure',
+    'get_mean_temperature',
 ]
