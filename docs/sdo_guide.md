@@ -12,6 +12,7 @@ SDO 모듈은 태양 관측 데이터 처리를 위한 전문 도구를 제공�
 - **Level 1.5**: Level 1.0 → 1.5 전처리 (north-up, centered)
 - **Stacking**: 태양 자전 보정 이미지 스태킹
 - **Quality**: QUALITY 키워드 해석 및 데이터 품질 검증
+- **DEM**: 다파장 AIA 관측에서 온도 분포 역산 (SITES 알고리즘)
 
 ---
 
@@ -458,6 +459,7 @@ display = hmi_intscale(stacked, vmin=-200, vmax=200)
 | AIA/HMI 스케일링 | numpy | - |
 | Level 1.5 변환 | - | sunpy, astropy |
 | Stacking | numpy, scipy | sunpy, astropy |
+| DEM 분석 | numpy | aiapy (정확한 응답 함수) |
 | FITS 헤더 파싱 | - | astropy |
 
 설치:
@@ -465,8 +467,14 @@ display = hmi_intscale(stacked, vmin=-200, vmax=200)
 # 기본 (스케일링만)
 pip install numpy scipy
 
-# 전체 기능
-pip install numpy scipy astropy sunpy
+# SDO 전체 기능
+pip install "egghouse[sdo]"
+
+# DEM 분석 포함
+pip install "egghouse[dem]"
+
+# 모든 기능
+pip install "egghouse[all]"
 ```
 
 ---
@@ -606,10 +614,228 @@ print(f"사용 가능: {len(good_files)}/{len(fits_files)} 파일")
 
 ---
 
+## DEM (Differential Emission Measure) 분석
+
+다파장 AIA 관측으로부터 온도별 방출 측도(DEM)를 역산합니다.
+SITES (Simple Iterative Temperature Emission Solver) 알고리즘 사용.
+
+### 기본 개념
+
+DEM은 코로나의 온도 분포를 나타냅니다:
+```
+I(λ) = ∫ K(T,λ) × DEM(T) × dT
+```
+- `I(λ)`: 관측 강도 (DN/s)
+- `K(T,λ)`: 온도 응답 함수
+- `DEM(T)`: Differential Emission Measure (cm⁻⁵ K⁻¹)
+
+6개의 AIA EUV 채널 (94, 131, 171, 193, 211, 335 Å)을 사용하여
+역산 문제를 풀어 온도 분포를 추정합니다.
+
+### 온도 응답 함수
+
+```python
+from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+
+# 기본 온도 그리드 (10^5.5 ~ 10^7.5 K)
+temps = get_default_temperatures(n_bins=100)
+
+# 온도 응답 함수 획득
+# aiapy 설치 시 정확한 응답, 미설치 시 근사값 사용
+response = get_temperature_response(temperatures=temps)
+print(f"Response shape: {response.shape}")  # (100, 6)
+
+# 특정 관측 시간의 degradation 보정 적용
+from datetime import datetime
+obs_time = datetime(2024, 1, 15, 12, 0, 0)
+response_corrected = get_temperature_response(
+    temperatures=temps,
+    time=obs_time,
+    include_degradation=True
+)
+```
+
+### 단일 픽셀 DEM 역산
+
+```python
+from egghouse.sdo.dem import dem_sites_pixel
+import numpy as np
+
+# 6채널 강도 (DN/s)
+intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
+errors = intensities * 0.1  # 10% 오차
+
+# SITES 알고리즘으로 DEM 역산
+dem, info = dem_sites_pixel(
+    intensities,
+    errors,
+    response,
+    temps,
+    max_iter=100,
+    tol=1e-4
+)
+
+print(f"수렴: {info['converged']}")
+print(f"반복 횟수: {info['iterations']}")
+print(f"Chi-squared: {info['chi2']:.2f}")
+print(f"DEM peak: {dem.max():.2e} cm^-5 K^-1")
+```
+
+### 전체 맵 DEM 처리
+
+```python
+from egghouse.sdo.dem import dem_map
+
+# image_cube: (height, width, 6) 형태
+# error_cube: 동일 형태
+
+dem_cube, info = dem_map(
+    image_cube,
+    error_cube,
+    response,
+    temps,
+    chunk_size=512,  # 메모리 효율을 위한 청크 크기
+    max_iter=100,
+)
+
+print(f"DEM cube shape: {dem_cube.shape}")  # (height, width, n_temps)
+print(f"처리된 픽셀: {info['n_pixels']}")
+```
+
+### 파생량 계산
+
+```python
+from egghouse.sdo.dem import get_emission_measure, get_mean_temperature
+
+# 총 방출 측도: EM = ∫ DEM × dT
+em = get_emission_measure(dem, temps)
+print(f"Emission Measure: {em:.2e} cm^-5")
+
+# 특정 온도 범위만 적분
+em_hot = get_emission_measure(dem, temps, t_min=1e6, t_max=1e7)
+
+# DEM 가중 평균 온도
+t_mean = get_mean_temperature(dem, temps)
+print(f"Mean Temperature: {t_mean/1e6:.2f} MK")
+
+# 맵 전체에 적용
+em_map = get_emission_measure(dem_cube, temps)
+t_map = get_mean_temperature(dem_cube, temps)
+```
+
+### 오차 추정 (Monte Carlo)
+
+```python
+from egghouse.sdo.dem.utils import compute_dem_errors
+
+# Monte Carlo 방법으로 DEM 불확도 추정
+dem_errors = compute_dem_errors(
+    dem,
+    intensities,
+    errors,
+    response,
+    temps,
+    n_monte_carlo=100
+)
+print(f"DEM error range: {dem_errors.min():.2e} - {dem_errors.max():.2e}")
+```
+
+### 실제 데이터 워크플로우
+
+```python
+from datetime import datetime
+import numpy as np
+from sunpy.net import Fido, attrs as a
+from sunpy.map import Map
+import astropy.units as u
+from egghouse.sdo.dem import (
+    get_temperature_response,
+    get_default_temperatures,
+    dem_map,
+    get_emission_measure,
+    get_mean_temperature,
+)
+
+# 1. AIA 데이터 다운로드
+obs_time = datetime(2024, 1, 15, 12, 0, 0)
+wavelengths = [94, 131, 171, 193, 211, 335]
+
+files = {}
+for wave in wavelengths:
+    result = Fido.search(
+        a.Time(obs_time, obs_time),
+        a.Instrument("AIA"),
+        a.Wavelength(wave * u.angstrom),
+    )
+    downloaded = Fido.fetch(result, path='./data/')
+    files[wave] = downloaded[0]
+
+# 2. 이미지 큐브 생성
+maps = [Map(files[w]) for w in wavelengths]
+image_cube = np.stack([
+    m.data / m.exposure_time.to(u.s).value
+    for m in maps
+], axis=-1)
+error_cube = image_cube * 0.1
+
+# 3. 온도 응답 함수
+temps = get_default_temperatures(n_bins=100)
+response = get_temperature_response(
+    wavelengths=wavelengths,
+    temperatures=temps,
+    time=obs_time,
+)
+
+# 4. DEM 계산
+dem_cube, info = dem_map(
+    image_cube,
+    error_cube,
+    response,
+    temps,
+    chunk_size=512,
+)
+
+# 5. 파생량
+em = get_emission_measure(dem_cube, temps)
+t_mean = get_mean_temperature(dem_cube, temps)
+
+print(f"EM range: {em.min():.2e} - {em.max():.2e} cm^-5")
+print(f"T_mean range: {t_mean.min()/1e6:.2f} - {t_mean.max()/1e6:.2f} MK")
+```
+
+### DEM 상수
+
+```python
+from egghouse.sdo.dem import HAS_AIAPY
+from egghouse.sdo.dem.response import AIA_DEM_WAVELENGTHS
+
+print(f"aiapy 설치: {HAS_AIAPY}")
+print(f"DEM 파장: {AIA_DEM_WAVELENGTHS} Å")  # [94, 131, 171, 193, 211, 335]
+```
+
+### 주의사항
+
+1. **aiapy 설치 권장**: 정확한 온도 응답 함수를 위해 aiapy 설치 필요
+   ```bash
+   pip install aiapy
+   ```
+
+2. **메모리 사용량**: 4096×4096 맵의 경우 출력 DEM 큐브가 ~6.5 GB
+   - `chunk_size` 파라미터로 조절 가능
+   - `mask` 파라미터로 필요한 영역만 처리
+
+3. **양수 제약**: SITES 알고리즘은 DEM ≥ 0 제약 적용
+
+4. **수렴 확인**: `info['converged']`로 수렴 여부 확인
+
+---
+
 ## 참고문헌
 
 - Boerner, P. et al. 2012, Solar Physics, 275, 41 (AIA calibration)
 - Snodgrass, H.B. 1983, ApJ, 270, 288 (Differential rotation)
 - Lemen, J.R. et al. 2012, Solar Physics, 275, 17 (AIA instrument)
 - Schou, J. et al. 2012, Solar Physics, 275, 229 (HMI instrument)
+- Morgan, H. & Pickering, J. 2019, Solar Physics, 294, 135 (SITES algorithm)
+- Hannah, I.G. & Kontar, E.P. 2012, A&A, 539, A146 (DEM regularization)
 - JSOC QUALITY documentation: http://jsoc.stanford.edu/jsocwiki/Lev1qualBits

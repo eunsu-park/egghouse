@@ -170,6 +170,46 @@ SDO/AIA and SDO/HMI data processing utilities.
 | `get_quality_summary` | `(quality, instrument='AIA') -> dict` | Get structured quality summary |
 | `print_all_quality_bits` | `(instrument='AIA') -> None` | Print all quality bit definitions |
 
+### DEM (Differential Emission Measure)
+
+SITES algorithm implementation for DEM inversion from multi-wavelength AIA observations.
+Requires aiapy for accurate temperature response functions.
+
+**Response Functions:**
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `get_temperature_response` | `(wavelengths=None, temperatures=None, time=None, include_degradation=True) -> ndarray` | Get AIA temperature response K(T) for each channel |
+| `get_default_temperatures` | `(logt_min=5.5, logt_max=7.5, n_bins=100) -> ndarray` | Get default log-spaced temperature grid |
+
+**SITES Algorithm:**
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `dem_sites` | `(intensities, errors, response, temperatures, max_iter=100, tol=1e-3, ...) -> Tuple[ndarray, dict]` | Multi-wavelength DEM inversion using SITES |
+| `dem_sites_pixel` | `(intensities, errors, response, temperatures, ...) -> Tuple[ndarray, dict]` | Single-pixel DEM inversion interface |
+
+**Map Processing:**
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `dem_map` | `(image_cube, error_cube, response, temperatures, mask=None, chunk_size=512, ...) -> Tuple[ndarray, dict]` | Full-map DEM with chunked processing |
+| `compute_dem_errors` | `(dem, intensities, errors, response, temperatures, n_monte_carlo=100) -> ndarray` | Monte Carlo DEM error estimation |
+
+**Derived Quantities:**
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `get_emission_measure` | `(dem, temperatures, t_min=None, t_max=None) -> float or ndarray` | Compute total emission measure from DEM |
+| `get_mean_temperature` | `(dem, temperatures, weight='dem') -> float or ndarray` | Compute DEM-weighted mean temperature |
+
+**Constants:**
+
+| Name | Value | Description |
+|------|-------|-------------|
+| `HAS_AIAPY` | bool | True if aiapy is available |
+| `AIA_DEM_WAVELENGTHS` | `[94, 131, 171, 193, 211, 335]` | Standard AIA EUV wavelengths for DEM |
+
 ### Constants
 
 | Name | Value | Description |

@@ -28,6 +28,7 @@ pip install -e .
 | io | - | astropy |
 | image | numpy, scipy | - |
 | sdo | numpy, scipy | astropy, sunpy |
+| dem | numpy | aiapy, astropy, sunpy |
 | config | pyyaml | - |
 | database | psycopg2-binary | pyyaml |
 | transfer | requests, beautifulsoup4 | - |
@@ -55,6 +56,12 @@ display = bytescale_image(data, imin=0, imax=5000)
 # 3. SDO Level 1.5 변환
 from egghouse.sdo import to_level15
 level15_map = to_level15('aia_lev1.fits')  # auto-detect AIA/HMI
+
+# 4. DEM (Differential Emission Measure) 분석
+from egghouse.sdo import dem_sites, get_temperature_response, get_default_temperatures
+temps = get_default_temperatures(n_bins=50)
+response = get_temperature_response(temperatures=temps)
+dem, info = dem_sites(intensities, errors, response, temps)
 ```
 
 ---
@@ -127,6 +134,28 @@ mean_image = stacker.run(fits_files)
 from egghouse.sdo import snodgrass_rotation_rate
 rate_eq = snodgrass_rotation_rate(0)    # 14.71 deg/day at equator
 rate_60 = snodgrass_rotation_rate(60)   # ~12.0 deg/day at 60° latitude
+
+# DEM (Differential Emission Measure) analysis using SITES algorithm
+from egghouse.sdo import (
+    dem_sites, dem_map, get_temperature_response, get_default_temperatures,
+    get_emission_measure, get_mean_temperature
+)
+
+# Setup temperature grid and response functions
+temps = get_default_temperatures(logt_min=5.5, logt_max=7.5, n_bins=50)
+response = get_temperature_response(temperatures=temps)  # requires aiapy
+
+# Single pixel DEM inversion
+intensities = [10.0, 50.0, 200.0, 150.0, 80.0, 20.0]  # 6 AIA channels (94-335 Å)
+errors = [i * 0.1 for i in intensities]
+dem, info = dem_sites(intensities, errors, response, temps)
+
+# Full-map DEM with chunked processing
+dem_cube, map_info = dem_map(image_cube, error_cube, response, temps)
+
+# Derived quantities
+em = get_emission_measure(dem, temps)  # Total emission measure
+t_mean = get_mean_temperature(dem, temps)  # DEM-weighted mean temperature
 ```
 
 ### `egghouse.config`
