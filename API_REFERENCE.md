@@ -291,12 +291,41 @@ PostgreSQL database utilities.
 
 ## egghouse.transfer
 
-HTTP file download utilities.
+File transfer utilities for HTTP, FTP, and SFTP protocols.
 
-### Functions
+### HTTP
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `download_single_file` | `(url, output_path, ...) -> bool` | Download single file with retry |
-| `get_file_list` | `(url, extension=None, ...) -> List[str]` | Scrape file links from directory listing |
-| `download_parallel` | `(urls, output_dir, max_workers=4, ...) -> List[str]` | Parallel download with ThreadPoolExecutor |
+| `download_single_file` | `(source_url, destination, overwrite=False, max_retries=3, timeout=30, verify_ssl=True) -> bool` | Download single file with retry |
+| `get_file_list` | `(base_url, extensions, timeout=30, verify_ssl=True) -> List[str]` | Scrape file links from directory listing |
+| `download_parallel` | `(download_tasks, overwrite=False, max_retries=3, parallel=1, timeout=30, verify_ssl=True) -> Dict[str, int]` | Parallel download with ThreadPoolExecutor |
+
+### FTP (no external dependencies)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ftp_connection` | `(host, port=21, user='anonymous', password='', timeout=30, passive=True) -> ContextManager[FTP]` | Context manager for FTP connection |
+| `ftp_download_file` | `(ftp, remote_path, local_path, overwrite=False) -> bool` | Download single file via FTP |
+| `ftp_upload_file` | `(ftp, local_path, remote_path, overwrite=False) -> bool` | Upload single file via FTP |
+| `ftp_list_files` | `(ftp, remote_dir='.', extensions=None) -> List[str]` | List files in remote directory |
+| `ftp_download_parallel` | `(host, download_tasks, port=21, user='anonymous', password='', overwrite=False, max_retries=3, parallel=1, timeout=30, passive=True) -> Dict[str, int]` | Parallel FTP download |
+| `ftp_upload_parallel` | `(host, upload_tasks, port=21, user='anonymous', password='', overwrite=False, max_retries=3, parallel=1, timeout=30, passive=True) -> Dict[str, int]` | Parallel FTP upload |
+
+### SFTP (requires paramiko)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `sftp_connection` | `(host, port=22, user=None, password=None, key_file=None, timeout=30) -> ContextManager[SFTPClient]` | Context manager for SFTP connection |
+| `sftp_download_file` | `(sftp, remote_path, local_path, overwrite=False) -> bool` | Download single file via SFTP |
+| `sftp_upload_file` | `(sftp, local_path, remote_path, overwrite=False) -> bool` | Upload single file via SFTP |
+| `sftp_list_files` | `(sftp, remote_dir='.', extensions=None) -> List[str]` | List files in remote directory |
+| `sftp_download_parallel` | `(host, download_tasks, port=22, user=None, password=None, key_file=None, overwrite=False, max_retries=3, parallel=1, timeout=30) -> Dict[str, int]` | Parallel SFTP download |
+| `sftp_upload_parallel` | `(host, upload_tasks, port=22, user=None, password=None, key_file=None, overwrite=False, max_retries=3, parallel=1, timeout=30) -> Dict[str, int]` | Parallel SFTP upload |
+
+### Constants
+
+| Name | Description |
+|------|-------------|
+| `HAS_HTTP` | `True` if requests/beautifulsoup4 are available for HTTP |
+| `HAS_PARAMIKO` | `True` if paramiko is available for SFTP |

@@ -1,15 +1,29 @@
 # egghouse.transfer 사용 가이드
 
-HTTP 파일 다운로드 유틸리티.
+파일 전송 유틸리티 (HTTP, FTP, SFTP 지원).
 
 ---
 
 ## 개요
 
-웹 서버에서 파일을 다운로드하기 위한 유틸리티:
+다양한 프로토콜로 파일을 다운로드/업로드하기 위한 유틸리티:
+
+**HTTP**
 - 단일 파일 다운로드 (재시도 로직 포함)
 - 디렉토리 목록에서 파일 링크 스크래핑
 - 병렬 다운로드 (ThreadPoolExecutor)
+
+**FTP** (추가 의존성 없음)
+- FTP 서버 연결 (context manager)
+- 파일 다운로드/업로드
+- 디렉토리 파일 목록 조회
+- 병렬 다운로드/업로드
+
+**SFTP** (paramiko 필요)
+- SSH 기반 보안 파일 전송
+- 비밀번호 또는 키 파일 인증
+- 파일 다운로드/업로드
+- 병렬 다운로드/업로드
 
 ---
 
@@ -256,7 +270,219 @@ for url, path in tasks:
 
 ---
 
+## FTP 다운로드/업로드
+
+Python 표준 라이브러리 `ftplib`를 사용하며, 추가 의존성이 필요 없습니다.
+
+### FTP 연결
+
+```python
+from egghouse.transfer import ftp_connection, ftp_list_files, ftp_download_file
+
+# Context manager로 연결 (자동 연결 해제)
+with ftp_connection('ftp.example.com', user='anonymous', password='') as ftp:
+    # 파일 목록 조회
+    files = ftp_list_files(ftp, '/data/', extensions=['fits'])
+    print(f"Found {len(files)} files")
+
+    # 단일 파일 다운로드
+    ftp_download_file(ftp, '/data/file.fits', 'local_file.fits')
+```
+
+### FTP 연결 파라미터
+
+```python
+with ftp_connection(
+    host='ftp.example.com',
+    port=21,                # FTP 포트 (기본: 21)
+    user='anonymous',       # 사용자명 (기본: anonymous)
+    password='',            # 비밀번호
+    timeout=30,             # 연결 타임아웃 (초)
+    passive=True            # 패시브 모드 (기본: True)
+) as ftp:
+    ...
+```
+
+### FTP 파일 업로드
+
+```python
+from egghouse.transfer import ftp_connection, ftp_upload_file
+
+with ftp_connection('ftp.example.com', user='admin', password='secret') as ftp:
+    # 단일 파일 업로드
+    success = ftp_upload_file(ftp, 'local_file.fits', '/remote/path/file.fits')
+
+    if success:
+        print("Upload complete!")
+```
+
+### FTP 병렬 다운로드
+
+```python
+from egghouse.transfer import ftp_download_parallel
+
+# 다운로드 작업 목록 (원격 경로, 로컬 경로)
+tasks = [
+    ('/data/file1.fits', '/local/file1.fits'),
+    ('/data/file2.fits', '/local/file2.fits'),
+    ('/data/file3.fits', '/local/file3.fits'),
+]
+
+# 4개 연결로 병렬 다운로드
+result = ftp_download_parallel(
+    host='ftp.example.com',
+    download_tasks=tasks,
+    user='anonymous',
+    parallel=4,
+    max_retries=3
+)
+
+print(f"성공: {result['downloaded']}")
+print(f"실패: {result['failed']}")
+```
+
+### FTP 병렬 업로드
+
+```python
+from egghouse.transfer import ftp_upload_parallel
+
+# 업로드 작업 목록 (로컬 경로, 원격 경로)
+tasks = [
+    ('/local/file1.fits', '/upload/file1.fits'),
+    ('/local/file2.fits', '/upload/file2.fits'),
+]
+
+result = ftp_upload_parallel(
+    host='ftp.example.com',
+    upload_tasks=tasks,
+    user='admin',
+    password='secret',
+    parallel=4
+)
+
+print(f"성공: {result['uploaded']}")
+print(f"실패: {result['failed']}")
+```
+
+---
+
+## SFTP 다운로드/업로드
+
+SSH 기반 보안 파일 전송. `paramiko` 라이브러리가 필요합니다.
+
+### SFTP 설치
+
+```bash
+pip install paramiko
+```
+
+### SFTP 의존성 확인
+
+```python
+from egghouse.transfer import HAS_PARAMIKO
+
+if HAS_PARAMIKO:
+    print("SFTP 사용 가능")
+else:
+    print("paramiko 설치 필요: pip install paramiko")
+```
+
+### SFTP 연결 (비밀번호)
+
+```python
+from egghouse.transfer import sftp_connection, sftp_download_file, sftp_list_files
+
+with sftp_connection(
+    host='sftp.example.com',
+    user='admin',
+    password='secret'
+) as sftp:
+    # 파일 목록 조회
+    files = sftp_list_files(sftp, '/data/', extensions=['fits'])
+
+    # 파일 다운로드
+    sftp_download_file(sftp, '/data/file.fits', 'local_file.fits')
+```
+
+### SFTP 연결 (SSH 키)
+
+```python
+from egghouse.transfer import sftp_connection, sftp_upload_file
+
+with sftp_connection(
+    host='sftp.example.com',
+    port=22,
+    user='admin',
+    key_file='~/.ssh/id_rsa'  # SSH 개인키 경로
+) as sftp:
+    # 파일 업로드
+    sftp_upload_file(sftp, 'local_file.fits', '/remote/path/file.fits')
+```
+
+### SFTP 연결 파라미터
+
+```python
+with sftp_connection(
+    host='sftp.example.com',
+    port=22,                    # SSH 포트 (기본: 22)
+    user='username',            # 사용자명
+    password='secret',          # 비밀번호 (키 인증 시 생략 가능)
+    key_file='~/.ssh/id_rsa',   # SSH 개인키 경로 (선택)
+    timeout=30                  # 연결 타임아웃 (초)
+) as sftp:
+    ...
+```
+
+### SFTP 병렬 다운로드
+
+```python
+from egghouse.transfer import sftp_download_parallel
+
+tasks = [
+    ('/data/file1.fits', '/local/file1.fits'),
+    ('/data/file2.fits', '/local/file2.fits'),
+]
+
+result = sftp_download_parallel(
+    host='sftp.example.com',
+    download_tasks=tasks,
+    user='admin',
+    key_file='~/.ssh/id_rsa',
+    parallel=4,
+    max_retries=3
+)
+
+print(f"성공: {result['downloaded']}")
+print(f"실패: {result['failed']}")
+```
+
+### SFTP 병렬 업로드
+
+```python
+from egghouse.transfer import sftp_upload_parallel
+
+tasks = [
+    ('/local/file1.fits', '/upload/file1.fits'),
+    ('/local/file2.fits', '/upload/file2.fits'),
+]
+
+result = sftp_upload_parallel(
+    host='sftp.example.com',
+    upload_tasks=tasks,
+    user='admin',
+    key_file='~/.ssh/id_rsa',
+    parallel=4
+)
+
+print(f"성공: {result['uploaded']}")
+print(f"실패: {result['failed']}")
+```
+
+---
+
 ## API 요약
+
+### HTTP
 
 | 함수 | 설명 |
 |------|------|
@@ -264,18 +490,48 @@ for url, path in tasks:
 | `get_file_list(url, extensions, ...)` | 디렉토리 목록에서 파일 링크 스크래핑 |
 | `download_parallel(tasks, ...)` | 병렬 다운로드 |
 
+### FTP
+
+| 함수 | 설명 |
+|------|------|
+| `ftp_connection(host, ...)` | FTP 연결 context manager |
+| `ftp_download_file(ftp, remote, local, ...)` | 단일 파일 다운로드 |
+| `ftp_upload_file(ftp, local, remote, ...)` | 단일 파일 업로드 |
+| `ftp_list_files(ftp, dir, ...)` | 디렉토리 파일 목록 |
+| `ftp_download_parallel(host, tasks, ...)` | 병렬 다운로드 |
+| `ftp_upload_parallel(host, tasks, ...)` | 병렬 업로드 |
+
+### SFTP
+
+| 함수 | 설명 |
+|------|------|
+| `sftp_connection(host, ...)` | SFTP 연결 context manager |
+| `sftp_download_file(sftp, remote, local, ...)` | 단일 파일 다운로드 |
+| `sftp_upload_file(sftp, local, remote, ...)` | 단일 파일 업로드 |
+| `sftp_list_files(sftp, dir, ...)` | 디렉토리 파일 목록 |
+| `sftp_download_parallel(host, tasks, ...)` | 병렬 다운로드 |
+| `sftp_upload_parallel(host, tasks, ...)` | 병렬 업로드 |
+
 ---
 
 ## 의존성
 
-| 패키지 | 용도 |
-|--------|------|
-| requests | HTTP 요청 |
-| beautifulsoup4 | HTML 파싱 |
+| 패키지 | 용도 | 필수 |
+|--------|------|------|
+| requests | HTTP 요청 | HTTP 사용 시 |
+| beautifulsoup4 | HTML 파싱 | HTTP 사용 시 |
+| paramiko | SFTP 전송 | SFTP 사용 시 |
 
 설치:
 ```bash
+# HTTP만 사용
 pip install requests beautifulsoup4
+
+# SFTP 추가
+pip install paramiko
+
+# 전체 설치
+pip install egghouse[transfer,sftp]
 ```
 
 ---
@@ -286,3 +542,5 @@ pip install requests beautifulsoup4
 2. **SSL 검증**: `verify_ssl=False`는 신뢰할 수 있는 내부 서버에서만 사용하세요.
 3. **타임아웃**: 대용량 파일은 `timeout` 값을 늘려야 할 수 있습니다.
 4. **디스크 공간**: 다운로드 전 충분한 디스크 공간이 있는지 확인하세요.
+5. **FTP 패시브 모드**: 방화벽 뒤에 있으면 `passive=True` (기본값)를 사용하세요.
+6. **SSH 키 보안**: SFTP 키 파일은 적절한 권한(600)으로 보호하세요.

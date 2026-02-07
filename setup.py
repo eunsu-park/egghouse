@@ -31,6 +31,10 @@ setup(
             "requests>=2.25.0",
             "beautifulsoup4>=4.9.0",
         ],
+        # SFTP support (for transfer module)
+        "sftp": [
+            "paramiko>=3.0.0",
+        ],
         # FITS I/O (astropy-based functions)
         "fits": [
             "astropy>=5.0",
@@ -63,6 +67,7 @@ setup(
             "pyyaml>=6.0",
             "requests>=2.25.0",
             "beautifulsoup4>=4.9.0",
+            "paramiko>=3.0.0",
             "astropy>=5.0",
             "sunpy>=4.0",
             "aiapy>=0.7",

@@ -31,7 +31,7 @@ pip install -e .
 | dem | numpy | aiapy, astropy, sunpy |
 | config | pyyaml | - |
 | database | psycopg2-binary | pyyaml |
-| transfer | requests, beautifulsoup4 | - |
+| transfer | requests, beautifulsoup4 | paramiko (SFTP) |
 
 ---
 
@@ -206,19 +206,39 @@ df = db.to_dataframe(results, columns=['id', 'date', 'wavelength'])
 ```
 
 ### `egghouse.transfer`
-HTTP file download utilities with parallel support.
+File transfer utilities with HTTP, FTP, and SFTP support.
 
 ```python
 from egghouse.transfer import download_single_file, download_parallel, get_file_list
 
-# Single file download
+# HTTP: Single file download
 download_single_file('http://example.com/data.fits', 'data.fits')
 
-# Get file list from directory listing
-files = get_file_list('http://example.com/data/', extension='.fits')
+# HTTP: Get file list from directory listing
+files = get_file_list('http://example.com/data/', extensions=['fits'])
 
-# Parallel download
-download_parallel(url_list, output_dir, max_workers=4)
+# HTTP: Parallel download
+tasks = [('http://example.com/f1.fits', 'f1.fits'), ('http://example.com/f2.fits', 'f2.fits')]
+download_parallel(tasks, parallel=4)
+
+# FTP: Download files (no external dependencies)
+from egghouse.transfer import ftp_connection, ftp_download_file, ftp_list_files
+
+with ftp_connection('ftp.example.com', user='anonymous') as ftp:
+    files = ftp_list_files(ftp, '/data/', extensions=['fits'])
+    ftp_download_file(ftp, '/data/file.fits', 'local_file.fits')
+
+# FTP: Parallel download
+from egghouse.transfer import ftp_download_parallel
+tasks = [('/remote/f1.fits', 'f1.fits'), ('/remote/f2.fits', 'f2.fits')]
+result = ftp_download_parallel('ftp.example.com', tasks, parallel=4)
+
+# SFTP: Secure file transfer (requires paramiko)
+from egghouse.transfer import sftp_connection, sftp_download_file, sftp_upload_file
+
+with sftp_connection('sftp.example.com', user='admin', key_file='~/.ssh/id_rsa') as sftp:
+    sftp_download_file(sftp, '/data/file.fits', 'local_file.fits')
+    sftp_upload_file(sftp, 'local_file.fits', '/upload/file.fits')
 ```
 
 ---
