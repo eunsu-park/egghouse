@@ -276,7 +276,7 @@ password: password
 - [sdo_guide.md](docs/sdo_guide.md) - SDO/AIA/HMI data processing
 - [config_guide.md](docs/config_guide.md) - Configuration management
 - [database_guide.md](docs/database_guide.md) - PostgreSQL utilities
-- [transfer_guide.md](docs/transfer_guide.md) - HTTP file downloads
+- [transfer_guide.md](docs/transfer_guide.md) - File transfer utilities (HTTP, FTP, SFTP)
 
 **API Reference:** See [API_REFERENCE.md](API_REFERENCE.md) for complete function signatures.
 
