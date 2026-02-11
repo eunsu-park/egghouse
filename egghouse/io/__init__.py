@@ -12,9 +12,6 @@ Supported formats:
       No external dependencies (numpy + struct only).
       See egghouse.io.bmp for format details and usage.
 
-Future formats (planned):
-    - NetCDF, HDF5, etc.
-
 Example:
     >>> from egghouse.io import read_fits, write_fits
     >>> data, header = read_fits('image.fits')
