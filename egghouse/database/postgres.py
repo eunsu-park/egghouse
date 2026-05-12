@@ -11,7 +11,7 @@ from contextlib import contextmanager
 try:
     import psycopg2
     from psycopg2 import sql
-    from psycopg2.extras import RealDictCursor
+    from psycopg2.extras import RealDictCursor, execute_values
 except ImportError:
     raise ImportError(
         "psycopg2 is required for PostgresManager. "
@@ -157,6 +157,36 @@ class PostgresManager:
             self.logger.error(f"Connection failed: {e}")
             raise
     
+    def _ensure_connection(self) -> None:
+        """Reconnect if the connection is closed or broken."""
+        if self.conn is None or self.conn.closed:
+            self._log_info("Connection lost, reconnecting...")
+            self._connect()
+
+    @contextmanager
+    def transaction(self):
+        """Context manager for explicit transactions.
+
+        Temporarily disables autocommit, yields, then commits on
+        success or rolls back on exception.
+
+        Example:
+            >>> with db.transaction():
+            ...     db.insert('files', {'path': '/a.fits'}, return_id=True)
+            ...     db.insert('logs', {'file_id': fid, 'stage': 'quality'})
+        """
+        self._ensure_connection()
+        old_autocommit = self.conn.autocommit
+        self.conn.autocommit = False
+        try:
+            yield
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+        finally:
+            self.conn.autocommit = old_autocommit
+
     def close(self) -> None:
         """Close database connection."""
         if self.conn:
@@ -188,23 +218,29 @@ class PostgresManager:
     
     def execute(
         self,
-        query: str,
+        query: Union[str, sql.Composed],
         params: tuple = None,
         fetch: bool = False,
         dict_cursor: bool = True
     ) -> Optional[List[Dict]]:
         """
         Execute a SQL query.
-        
+
         Args:
-            query: SQL query string
+            query: SQL query string or psycopg2 sql.Composed object
             params: Query parameters (for parameterized queries)
             fetch: Whether to fetch results
             dict_cursor: Return results as dictionaries
-            
+
         Returns:
             Query results if fetch=True, None otherwise
         """
+        self._ensure_connection()
+
+        # Accept sql.Composed objects directly
+        if isinstance(query, (sql.Composed, sql.SQL)):
+            query = query.as_string(self.conn)
+
         if self.log_queries:
             log_query = query if not params else f"{query} | params: {params}"
             self.logger.info(f"Executing: {log_query}")
@@ -484,7 +520,8 @@ class PostgresManager:
         table_name: str,
         data: Union[Dict, List[Dict]],
         schema: Optional[str] = None,
-        return_id: bool = False
+        return_id: bool = False,
+        returning: Optional[Union[str, List[str]]] = None
     ) -> Optional[Any]:
         """
         Insert data into a table.
@@ -493,18 +530,23 @@ class PostgresManager:
             table_name: Name of the table.
             data: Dictionary or list of dictionaries with column:value pairs.
             schema: Schema name (optional).
-            return_id: If True, return the inserted ID (requires RETURNING clause).
+            return_id: If True, return the inserted ID (shorthand for returning='id').
+            returning: Column name(s) to return after insert.
+                If a string, returns the value of that column.
+                If a list, returns a dict of those columns.
 
         Returns:
-            Inserted ID if return_id=True, None otherwise.
+            Inserted value(s) if returning is set, None otherwise.
 
         Example:
             >>> db.insert('users', {'name': 'Eunsu', 'email': 'eunsu@kasi.re.kr'})
-            >>> db.insert('users', [
-            ...     {'name': 'User1', 'email': 'user1@example.com'},
-            ...     {'name': 'User2', 'email': 'user2@example.com'}
-            ... ])
+            >>> fid = db.insert('users', {'name': 'Eunsu'}, return_id=True)
+            >>> row = db.insert('users', {'name': 'Eunsu'}, returning=['id', 'name'])
         """
+        # Normalize returning parameter
+        if return_id and returning is None:
+            returning = 'id'
+
         table_id = self._build_table_identifier(table_name, schema)
 
         # Handle single dictionary
@@ -527,21 +569,95 @@ class PostgresManager:
         query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
             table_id, columns_sql, placeholders
         )
-        if return_id:
-            query = query + sql.SQL(" RETURNING id")
+        if returning:
+            if isinstance(returning, str):
+                ret_cols = [returning]
+            else:
+                ret_cols = returning
+            ret_sql = sql.SQL(", ").join(
+                [sql.Identifier(c) for c in ret_cols]
+            )
+            query = query + sql.SQL(" RETURNING ") + ret_sql
 
         query_str = query.as_string(self.conn)
+        fetch = returning is not None
 
         if len(values) == 1:
-            result = self.execute(query_str, params=values[0], fetch=return_id)
-            return result[0]['id'] if return_id and result else None
+            result = self.execute(query_str, params=values[0], fetch=fetch)
+            if not fetch or not result:
+                return None
+            row = result[0]
+            if isinstance(returning, str):
+                return row.get(returning)
+            return row
         else:
-            # Batch insert
+            # Batch insert (executemany, no RETURNING support)
             with self._cursor(dict_cursor=False) as cursor:
                 cursor.executemany(query_str, values)
-                full_name = f"{schema}.{table_name}" if schema else table_name
-                self._log_info(f"Inserted {len(values)} rows into '{full_name}'")
+                full_name = (
+                    f"{schema}.{table_name}" if schema else table_name
+                )
+                self._log_info(
+                    f"Inserted {len(values)} rows into '{full_name}'"
+                )
             return None
+
+    def batch_insert(
+        self,
+        table_name: str,
+        data: List[Dict],
+        schema: Optional[str] = None,
+        page_size: int = 1000
+    ) -> int:
+        """
+        High-performance batch insert using psycopg2 execute_values.
+
+        10-50x faster than executemany for large batches.
+
+        Args:
+            table_name: Name of the table.
+            data: List of dictionaries with column:value pairs.
+            schema: Schema name (optional).
+            page_size: Number of rows per VALUES batch (default: 1000).
+
+        Returns:
+            Number of inserted rows.
+
+        Example:
+            >>> rows = [{'name': f'user_{i}', 'score': i} for i in range(10000)]
+            >>> db.batch_insert('scores', rows, page_size=2000)
+        """
+        if not data:
+            return 0
+
+        self._ensure_connection()
+        table_id = self._build_table_identifier(table_name, schema)
+
+        columns = list(data[0].keys())
+        columns_sql = sql.SQL(", ").join(
+            [sql.Identifier(col) for col in columns]
+        )
+
+        template = sql.SQL("INSERT INTO {} ({}) VALUES %s").format(
+            table_id, columns_sql
+        )
+
+        values = [tuple(record[col] for col in columns) for record in data]
+
+        with self._cursor(dict_cursor=False) as cursor:
+            execute_values(
+                cursor,
+                template.as_string(self.conn),
+                values,
+                page_size=page_size,
+            )
+            count = cursor.rowcount
+
+        full_name = f"{schema}.{table_name}" if schema else table_name
+        self._log_info(
+            f"Batch inserted {count} rows into '{full_name}'"
+        )
+        return count
     
     def select(
         self,
@@ -653,7 +769,7 @@ class PostgresManager:
         date_col_id = sql.Identifier(date_column)
         end_operator = sql.SQL("<=") if inclusive_end else sql.SQL("<")
 
-        date_condition = sql.SQL("{} >= %s AND {} {}  %s").format(
+        date_condition = sql.SQL("{} >= %s AND {} {} %s").format(
             date_col_id, date_col_id, end_operator
         )
         params.extend([start_date, end_date])
@@ -952,6 +1068,34 @@ class PostgresManager:
 
         self.conn.autocommit = old_autocommit
         self._log_info("Vacuum completed")
+
+    @classmethod
+    def from_config(
+        cls,
+        config_path: Optional[str] = None,
+        **overrides
+    ) -> "PostgresManager":
+        """
+        Create PostgresManager from a config file or environment variables.
+
+        Args:
+            config_path: Path to YAML/JSON config file (optional).
+                If None, reads from environment variables (DB_HOST, etc.).
+            **overrides: Override any config parameter.
+
+        Returns:
+            Configured PostgresManager instance.
+
+        Example:
+            >>> db = PostgresManager.from_config('db_config.yaml')
+            >>> db = PostgresManager.from_config(database='solar_pipeline')
+        """
+        from .config import load_config
+
+        config = load_config(config_path)
+        params = config.get("database", config)
+        params.update(overrides)
+        return cls(**params)
 
 
 # Utility functions
