@@ -218,3 +218,97 @@ def test_download_single_file_skips_when_exists_and_not_overwrite(tmp_path):
     ok = download_single_file("https://example/x.fts", str(dest), overwrite=False)
     assert ok is True
     assert dest.read_bytes() == b"old"
+
+
+# --- atomic-write semantics (.part + os.replace) ---
+
+
+def test_download_single_file_success_leaves_no_part_file(monkeypatch, tmp_path):
+    def fake_get(url, **kwargs):
+        resp = _make_response(200, "body")
+        resp.content = b"payload"
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    dest = tmp_path / "ok.fts"
+    ok = download_single_file("https://example/ok.fts", str(dest), max_retries=0)
+    assert ok is True
+    assert dest.read_bytes() == b"payload"
+    assert not (tmp_path / "ok.fts.part").exists()
+
+
+def test_download_single_file_404_leaves_no_part_file(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        transfer_http.requests, "get", lambda url, **kwargs: _make_response(404)
+    )
+    dest = tmp_path / "nope.fts"
+    ok = download_single_file("https://example/nope.fts", str(dest), max_retries=0)
+    assert ok is False
+    assert not dest.exists()
+    assert not (tmp_path / "nope.fts.part").exists()
+
+
+def test_download_single_file_exhausted_retry_leaves_no_part_or_dest(
+    monkeypatch, tmp_path
+):
+    def fake_get(url, **kwargs):
+        raise requests.ConnectionError("DNS fail")
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+    dest = tmp_path / "x.fts"
+    ok = download_single_file("https://example/x.fts", str(dest), max_retries=2)
+    assert ok is False
+    assert not dest.exists()
+    assert not (tmp_path / "x.fts.part").exists()
+
+
+def test_download_single_file_mid_write_crash_leaves_no_destination(
+    monkeypatch, tmp_path
+):
+    """A crash between open() and os.replace() must NOT leave a final file.
+
+    Simulates SIGKILL / power loss after the response body is in memory by
+    raising during f.write(). The destination must not exist; any residual
+    .part is acceptable (will be truncated on next attempt) but the contract
+    is "no truncated file at the final path."
+    """
+    class _ExplodingBytes:
+        def __init__(self, _good):
+            pass
+
+    def fake_get(url, **kwargs):
+        resp = _make_response(200, "body")
+        # raise on .write(response.content): make content access blow up.
+        type(resp).content = property(
+            lambda self: (_ for _ in ()).throw(OSError("disk full"))
+        )
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+
+    dest = tmp_path / "boom.fts"
+    with pytest.raises(OSError):
+        download_single_file("https://example/boom.fts", str(dest), max_retries=0)
+    assert not dest.exists()
+
+
+def test_download_single_file_overwrite_replaces_existing_atomically(
+    monkeypatch, tmp_path
+):
+    dest = tmp_path / "existing.fts"
+    dest.write_bytes(b"old")
+
+    def fake_get(url, **kwargs):
+        resp = _make_response(200, "body")
+        resp.content = b"new"
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    ok = download_single_file(
+        "https://example/x.fts", str(dest), overwrite=True, max_retries=0
+    )
+    assert ok is True
+    assert dest.read_bytes() == b"new"
+    assert not (tmp_path / "existing.fts.part").exists()

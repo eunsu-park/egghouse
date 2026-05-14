@@ -17,6 +17,7 @@ Error handling:
   keeps returning False after exhausting retries.
 """
 
+import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -93,13 +94,30 @@ def download_single_file(
     Returns:
         True if download succeeded, False otherwise.
     """
-    if Path(destination).exists() and not overwrite:
+    dest_path = Path(destination)
+    if dest_path.exists() and not overwrite:
         return True
 
-    Path(destination).parent.mkdir(parents=True, exist_ok=True)
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not verify_ssl:
         urllib3.disable_warnings(InsecureRequestWarning)
+
+    # Atomic-write: stream to <destination>.part, then os.replace to final.
+    # Guarantees the final path is created only when the full body has been
+    # written, so a SIGKILL or power loss between open() and write() flush
+    # cannot leave a truncated file at the destination. POSIX os.replace is
+    # atomic within the same filesystem; cross-fs callers should ensure the
+    # tmp and final paths share a mount.
+    tmp_path = dest_path.with_name(dest_path.name + ".part")
+
+    def _cleanup_tmp() -> None:
+        try:
+            tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            pass  # Best-effort; leftover .part is non-fatal.
 
     last_exc: Optional[BaseException] = None
     for attempt in range(max_retries + 1):
@@ -107,8 +125,9 @@ def download_single_file(
             response = requests.get(source_url, timeout=timeout, verify=verify_ssl)
             response.raise_for_status()
 
-            with open(destination, "wb") as f:
+            with open(tmp_path, "wb") as f:
                 f.write(response.content)
+            os.replace(tmp_path, dest_path)
             return True
 
         except requests.RequestException as e:
@@ -118,6 +137,7 @@ def download_single_file(
                     f"Failed to download {source_url}: {e} "
                     "(terminal error, no retry)"
                 )
+                _cleanup_tmp()
                 return False
 
         if attempt < max_retries:
@@ -127,8 +147,10 @@ def download_single_file(
                 f"Failed to download {source_url} after {max_retries + 1} "
                 f"attempts (transient error): {last_exc}"
             )
+            _cleanup_tmp()
             return False
 
+    _cleanup_tmp()
     return False
 
 
