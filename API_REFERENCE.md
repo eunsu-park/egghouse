@@ -73,6 +73,12 @@ Generic image processing utilities. Organized into submodules:
 | `circle_mask` | `(image_size, radius, center=None, mask_type='inner') -> ndarray` | Circular boolean mask |
 | `annulus_mask` | `(image_size, inner_radius, outer_radius, center=None) -> ndarray` | Ring-shaped boolean mask |
 
+### Binning (v0.5+)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `bin_ndarray` | `(array, new_shape, operation='sum') -> ndarray` | Block-wise sum / mean n-D down-binner. Each `new_shape[i]` must evenly divide `array.shape[i]`. |
+
 ### Spatial
 
 | Function | Signature | Description |
@@ -147,6 +153,23 @@ SDO/AIA and SDO/HMI data processing utilities.
 | `to_level15` | `(fits_file, instrument=None, target_plate_scale=None, target_size=4096, order=3, missing=0.0) -> Map` | Convert Level 1.0 to 1.5 (north-up, centered) |
 | `batch_to_level15` | `(fits_files, output_dir, instrument=None, overwrite=False, progress_callback=None, **kwargs) -> List[str]` | Batch Level 1.5 conversion |
 | `get_level_info` | `(fits_file) -> dict` | Get processing level info from FITS |
+
+### AIA Level 1.0 → 1.5 prep stages (v0.5+)
+
+aiapy-backed wrappers for the prep stages not handled by `to_level15`.
+All are no-ops for wavelengths outside the AIA EUV + 304 Å set so they
+are safe to apply across heterogeneous batches. `aiapy` and `sunpy`
+are imported only inside the bodies; merely importing
+`egghouse.sdo.prep` does not require either.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `aia_update_pointing` | `(sdo_map, pointing_table=None) -> Map` | Refresh WCS keywords against the JSOC master pointing table. |
+| `aia_respike` | `(sdo_map, spikes=None) -> Map` | Re-inject spike pixels removed by the Level 1 pipeline. When `spikes` is `None`, `aiapy.calibrate.fetch_spikes` is called (one JSOC round-trip per record). |
+| `aia_correct_degradation` | `(sdo_map, correction_table=None) -> Map` | Time-dependent effective-area correction. Returns input unchanged for non-AIA wavelengths. |
+| `aia_deconvolve` | `(sdo_map, psfs=None) -> Map` | PSF deconvolution. Pre-compute PSFs via `cached_aia_psfs` for batch jobs (PSF computation is ~minutes per channel). Returns input unchanged for non-AIA wavelengths. |
+| `cached_aia_psfs` | `(path, *, wavelengths=(94,131,171,193,211,304,335)) -> dict[int, ndarray]` | Pickle-cached `{wavelength: PSF}` dict. Rebuilds if the cache does not cover all requested wavelengths. |
+| `mask_out_of_disk` | `(sdo_map, *, fill_value=-5000.0) -> Map` | Off-disk pixels set to `fill_value`. Reads disk radius from `R_SUN` or `RSUN_OBS / CDELT1`; raises `KeyError` if neither is available. |
 
 ### JSOC (drms-based data acquisition; v0.4+)
 
