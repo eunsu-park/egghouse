@@ -282,5 +282,76 @@ def roll_image(
     return np.roll(image, (shift_y, shift_x), axis=(0, 1))
 
 
+def bin_ndarray(
+    array: np.ndarray,
+    new_shape: Tuple[int, ...],
+    operation: Literal["sum", "mean"] = "sum",
+) -> np.ndarray:
+    """
+    Bin an n-dimensional array down to a smaller shape by summing or
+    averaging blocks of pixels.
+
+    Each output dimension must evenly divide the corresponding input
+    dimension. The function reshapes into ``(n0, b0, n1, b1, ...)`` and
+    reduces over the ``bi`` axes — equivalent to a block-wise sum or
+    mean with no overlap.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        Input n-dimensional array.
+    new_shape : tuple of int
+        Target shape. Must have the same number of dimensions as
+        ``array``, and each entry must divide ``array.shape[i]``.
+    operation : {"sum", "mean"}, default "sum"
+        Reduction applied within each block.
+
+    Returns
+    -------
+    np.ndarray
+        Binned array with shape ``new_shape``.
+
+    Raises
+    ------
+    ValueError
+        If ``operation`` is unsupported, if the number of dimensions
+        does not match, or if any source dimension is not divisible by
+        the corresponding target dimension.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> m = np.arange(100).reshape((10, 10))
+    >>> bin_ndarray(m, (5, 5), operation="sum").shape
+    (5, 5)
+    >>> float(bin_ndarray(m, (5, 5), operation="mean")[0, 0])
+    5.5
+    """
+    operation_l = operation.lower()
+    if operation_l not in ("sum", "mean"):
+        raise ValueError(
+            f"operation must be 'sum' or 'mean'; got {operation!r}"
+        )
+    if array.ndim != len(new_shape):
+        raise ValueError(
+            f"new_shape must match array.ndim: got new_shape={new_shape}, "
+            f"array.shape={array.shape}"
+        )
+    for src, tgt in zip(array.shape, new_shape):
+        if tgt <= 0 or src % tgt != 0:
+            raise ValueError(
+                f"each new_shape entry must positively divide the source "
+                f"dimension; got source={array.shape}, target={new_shape}"
+            )
+
+    pairs = [(tgt, src // tgt) for tgt, src in zip(new_shape, array.shape)]
+    reshape_dims: list[int] = [dim for pair in pairs for dim in pair]
+    reshaped = array.reshape(reshape_dims)
+    for i in range(len(new_shape)):
+        reduce_axis = -(i + 1)
+        reshaped = getattr(reshaped, operation_l)(axis=reduce_axis)
+    return reshaped
+
+
 # Convenience alias
 pad = pad_image

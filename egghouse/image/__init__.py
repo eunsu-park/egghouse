@@ -52,6 +52,7 @@ from .spatial import (
     crop_or_pad,
     flip_image,
     roll_image,
+    bin_ndarray,
     # Alias
     pad,
 )
@@ -86,6 +87,7 @@ __all__ = [
     'crop_or_pad',
     'flip_image',
     'roll_image',
+    'bin_ndarray',
     # Filters
     'gaussian_smooth',
     'median_denoise',

@@ -63,6 +63,14 @@ from egghouse.sdo import jsoc_export, aia_euv_query
 q = aia_euv_query([datetime(2014, 1, 1, 12, 0, 0)])
 urls = jsoc_export(q, email='you@example.com')
 
+# 3c. AIA Level 1 -> 1.5 prep stages (v0.5+)
+from egghouse.sdo import (
+    aia_update_pointing, aia_respike,
+    aia_correct_degradation, aia_deconvolve,
+    cached_aia_psfs, mask_out_of_disk,
+)
+# Compose at the call site; pass cached tables/PSFs for batch jobs.
+
 # 4. DEM (Differential Emission Measure) 분석
 from egghouse.sdo import dem_sites, get_temperature_response, get_default_temperatures
 temps = get_default_temperatures(n_bins=50)
@@ -185,6 +193,52 @@ dem_cube, map_info = dem_map(image_cube, error_cube, response, temps)
 # Derived quantities
 em = get_emission_measure(dem, temps)  # Total emission measure
 t_mean = get_mean_temperature(dem, temps)  # DEM-weighted mean temperature
+```
+
+### `egghouse.sdo` — AIA Level 1 → 1.5 prep stages (v0.5+)
+
+`to_level15` (above) handles rotation, resampling, and padding for both
+AIA and HMI. For full AIA preparation you typically also want some of
+these aiapy-backed stages, exposed individually so callers can compose
+exactly what they need:
+
+```python
+from egghouse.sdo import (
+    to_level15,
+    aia_update_pointing, aia_respike,
+    aia_correct_degradation, aia_deconvolve,
+    cached_correction_table, cached_pointing_table, cached_aia_psfs,
+    mask_out_of_disk,
+)
+import sunpy.map
+import datetime as dt
+
+# Pre-fetch slow tables once per batch.
+correction = cached_correction_table('/cache/correction_table.pkl')
+pointing = cached_pointing_table(
+    '/cache/pointing_table.pkl',
+    start=dt.datetime(2014, 1, 1),
+    end=dt.datetime(2014, 1, 2),
+)
+psfs = cached_aia_psfs('/cache/aia_psfs.pkl')  # ~minutes on first call
+
+m = sunpy.map.Map('aia.lev1.fits')
+m = aia_update_pointing(m, pointing_table=pointing)
+m = aia_respike(m)                                    # JSOC fetch per record
+m = aia_deconvolve(m, psfs=psfs)
+m = aia_correct_degradation(m, correction_table=correction)
+m = to_level15(m)                                     # rotation + resample + pad
+m = mask_out_of_disk(m, fill_value=-5000.0)
+```
+
+### `egghouse.image` — n-D binning (v0.5+)
+
+```python
+import numpy as np
+from egghouse.image import bin_ndarray
+m = np.arange(100).reshape((10, 10))
+bin_ndarray(m, (5, 5), operation='sum')    # 2x2 block sum
+bin_ndarray(m, (5, 5), operation='mean')   # 2x2 block mean
 ```
 
 ### `egghouse.sdo` — JSOC export (drms-based)

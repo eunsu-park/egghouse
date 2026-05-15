@@ -4,6 +4,56 @@ All notable changes to **egghouse** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-05-15
+
+### Added — AIA Level 1.0 → 1.5 prep stages
+
+New module **`egghouse.sdo.prep`**, migrated from the soon-to-be-retired
+solar-and-space-weather (snsw) repo. All functions are re-exported from
+`egghouse.sdo`.
+
+- `aia_update_pointing(sdo_map, pointing_table=None)` — refresh WCS
+  keywords against the JSOC master pointing table.
+- `aia_respike(sdo_map, spikes=None)` — re-inject spike pixels removed
+  by the Level 1 pipeline.
+- `aia_correct_degradation(sdo_map, correction_table=None)` —
+  time-dependent effective-area correction; returns input unchanged
+  for non-AIA wavelengths.
+- `aia_deconvolve(sdo_map, psfs=None)` — PSF deconvolution; pair with
+  `cached_aia_psfs` so the slow PSF computation is amortized.
+- `cached_aia_psfs(path, *, wavelengths=...)` — pickle-cached AIA PSF
+  dict for the standard seven channels.
+- `mask_out_of_disk(sdo_map, *, fill_value=-5000.0)` — sunpy.Map utility
+  that flags off-disk pixels with a sentinel; derives the disk radius
+  from `R_SUN` or `RSUN_OBS / CDELT1`.
+
+### Added — image utility
+
+- `egghouse.image.bin_ndarray(array, new_shape, operation)` — n-D
+  block-sum / block-mean down-binner. Each output dimension must
+  evenly divide the corresponding source dimension; raises on
+  unsupported operations, dim mismatches, and non-divisible shapes.
+
+### Notes
+
+- These additions complete the practically useful subset of the snsw
+  retirement. Items deliberately *not* migrated and the rationale:
+    * `aia_register` — trivial wrapper over `aiapy.calibrate.register`,
+      callers should use aiapy directly.
+    * `preparation` / `define_preparation_func` — small composer +
+      `functools.partial` helper; compose at the call site.
+    * `pad_to_target_shape` / `resize(Map, ...)` — `to_level15` already
+      pads to 4096 and `bin_ndarray` plus a 4-line meta update covers
+      the snsw `resize` use case.
+    * `transfer.{get_file_list, download_http, download_wget}` —
+      egghouse already has more robust requests-based equivalents in
+      `egghouse.transfer`.
+    * snsw `io.{png,jpeg,gif,tiff}` — separate, larger scope; deferred.
+- Tests: 14 new cases (7 for `bin_ndarray`, 7 for prep). Full suite:
+  204 passed.
+
+---
+
 ## [0.4.0] — 2026-05-15
 
 ### Added

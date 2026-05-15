@@ -29,6 +29,14 @@ from .level15 import (
     HMI_PLATE_SCALE,
     SDO_IMAGE_SIZE,
 )
+from .prep import (
+    aia_update_pointing,
+    aia_respike,
+    aia_correct_degradation,
+    aia_deconvolve,
+    cached_aia_psfs,
+    mask_out_of_disk,
+)
 from .stacking import (
     # Classes
     Stacking,
@@ -142,6 +150,13 @@ __all__ = [
     'cached_correction_table',
     'cached_pointing_table',
     'AIA_LEV1_EUV_SERIES',
+    # AIA prep stages (aiapy wrappers)
+    'aia_update_pointing',
+    'aia_respike',
+    'aia_correct_degradation',
+    'aia_deconvolve',
+    'cached_aia_psfs',
+    'mask_out_of_disk',
     # DEM - Response functions
     'get_temperature_response',
     'get_default_temperatures',
