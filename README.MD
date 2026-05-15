@@ -60,7 +60,10 @@ level15_map = to_level15('aia_lev1.fits')  # auto-detect AIA/HMI
 # 4. DEM (Differential Emission Measure) 분석
 from egghouse.sdo import dem_sites, get_temperature_response, get_default_temperatures
 temps = get_default_temperatures(n_bins=50)
-response = get_temperature_response(temperatures=temps)
+# v0.3+ : aiapy 0.12 removed Channel.temperature_response, so the canonical
+# CHIANTI-based response is loaded from an SSW aia_get_response .npz table
+# (e.g. one shipped with demregpy). See `egghouse.sdo` module docs.
+response = get_temperature_response(temperatures=temps, ssw_table_path='response_matrix.npz')
 dem, info = dem_sites(intensities, errors, response, temps)
 ```
 
@@ -138,12 +141,32 @@ rate_60 = snodgrass_rotation_rate(60)   # ~12.0 deg/day at 60° latitude
 # DEM (Differential Emission Measure) analysis using SITES algorithm
 from egghouse.sdo import (
     dem_sites, dem_map, get_temperature_response, get_default_temperatures,
-    get_emission_measure, get_mean_temperature
+    load_ssw_temperature_response,
+    get_emission_measure, get_mean_temperature,
 )
 
-# Setup temperature grid and response functions
+# Setup temperature grid
 temps = get_default_temperatures(logt_min=5.5, logt_max=7.5, n_bins=50)
-response = get_temperature_response(temperatures=temps)  # requires aiapy
+
+# Temperature response source (v0.3+): aiapy 0.12 removed
+# `Channel.temperature_response`, so research-quality K(T) is loaded from
+# the canonical SSW `aia_get_response.pro` output (CHIANTI-based; e.g.
+# the .npz shipped with demregpy). Two equivalent entry points:
+#
+#   1) Use the get_temperature_response wrapper with ssw_table_path:
+response = get_temperature_response(temperatures=temps, ssw_table_path='response_matrix.npz')
+#
+#   2) Call the SSW loader directly (preferred when you don't need the
+#      aiapy-style wrapper signature):
+import numpy as np
+response = load_ssw_temperature_response(
+    'response_matrix.npz',
+    log_temperatures=np.log10(temps),
+    wavelengths=[94, 131, 171, 193, 211, 335],
+    response_key='response_v10_en',  # V10 effective area + EVE normalization
+)
+# In both cases the shape is (n_temperatures, n_wavelengths), units
+# DN cm^5 s^-1 pixel^-1.
 
 # Single pixel DEM inversion
 intensities = [10.0, 50.0, 200.0, 150.0, 80.0, 20.0]  # 6 AIA channels (94-335 Å)
