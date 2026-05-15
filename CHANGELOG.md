@@ -4,6 +4,50 @@ All notable changes to **egghouse** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] — 2026-05-16
+
+### Removed (breaking) — `egghouse.io` retired
+
+The `egghouse.io` subpackage has been removed in full. An audit found
+that:
+
+- The submodule was effectively unused inside egghouse itself.
+- Downstream consumers (the undine project) touched it in exactly one
+  line (`acquisition/core.py:211`'s `read_fits_header`), which is now
+  three lines of `astropy.io.fits.getheader(...)`.
+- The originally stated purposes ("study" + "dep-light") were only
+  genuinely served by the pure-Python FITS / BMP implementations.
+  Adding the snsw Pillow-backed PNG / JPEG / GIF / TIFF wrappers would
+  not have served either purpose — they were just thin `PIL.Image`
+  adapters.
+- Maintaining wrappers that re-export the canonical libraries (astropy,
+  Pillow) under a different name adds an indirection layer without
+  buying anything; the API churn risk (e.g. the aiapy 0.12 break that
+  we just patched in 0.3.0) is duplicated.
+
+What this means for callers:
+
+```python
+# Before (egghouse 0.5.0 and earlier):
+from egghouse.io import read_fits, write_fits, read_fits_header, read_bmp, write_bmp
+
+# After (egghouse 0.6.0+):
+from astropy.io import fits        # for FITS
+from PIL import Image              # for BMP / PNG / JPEG / GIF / TIFF / ...
+header = fits.getheader(path)      # was read_fits_header(path)
+data = fits.getdata(path)          # was part of read_fits(path)
+```
+
+The pure-Python FITS / BMP implementations that lived under
+`egghouse.io` are not migrated elsewhere; format-internals study
+materials, if ever needed again, belong in a dedicated repo rather
+than a production utility library.
+
+`egghouse.__all__` no longer lists `"io"`. The `tests/test_io/`
+directory is removed.
+
+---
+
 ## [0.5.0] — 2026-05-15
 
 ### Added — AIA Level 1.0 → 1.5 prep stages

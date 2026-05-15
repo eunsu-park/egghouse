@@ -4,7 +4,6 @@ Complete list of all public functions, classes, and constants in egghouse.
 
 **Detailed Usage Guides:** See [docs/](docs/) folder for module-specific guides.
 
-- [io_guide.md](docs/io_guide.md) - FITS, BMP file I/O
 - [image_guide.md](docs/image_guide.md) - Image processing utilities
 - [sdo_guide.md](docs/sdo_guide.md) - SDO/AIA/HMI data processing
 - [config_guide.md](docs/config_guide.md) - Configuration management
@@ -13,39 +12,8 @@ Complete list of all public functions, classes, and constants in egghouse.
 
 ---
 
-## egghouse.io
-
-File I/O utilities for scientific data formats.
-
-### FITS (requires astropy)
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `read_fits` | `(filepath, hdu_index=0) -> Tuple[ndarray, dict]` | Read FITS data and header |
-| `write_fits` | `(filepath, data, header=None, overwrite=False) -> None` | Write numpy array to FITS |
-| `read_fits_header` | `(filepath, hdu_index=0) -> dict` | Read header only (no data loading) |
-| `append_fits` | `(filepath, data, header=None) -> None` | Append HDU extension to existing FITS |
-
-### FITS (pure numpy, no dependencies)
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `read_fits_simple` | `(filepath, hdu_index=0, apply_scaling=True) -> Tuple[ndarray, dict]` | Read FITS image HDU (Primary or Extension) |
-| `read_fits_header_simple` | `(filepath, hdu_index=0) -> dict` | Read header only (no data loading) |
-
-### BMP (no external dependencies)
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `read_bmp` | `(filepath) -> Tuple[ndarray, dict]` | Read BMP as (H,W,3) uint8 RGB + info |
-| `write_bmp` | `(filepath, data, overwrite=False) -> None` | Write (H,W) or (H,W,3) uint8 to BMP |
-| `read_bmp_header` | `(filepath) -> dict` | Read BMP header only |
-
-### Constants
-
-| Name | Description |
-|------|-------------|
-| `HAS_ASTROPY` | `True` if astropy is available |
+> **Note (v0.6.0):** `egghouse.io` was retired. Use `astropy.io.fits` for
+> FITS and `PIL.Image` (Pillow) for other image formats directly.
 
 ---
 
