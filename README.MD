@@ -25,7 +25,6 @@ pip install -e .
 | Module | Required | Optional |
 |--------|----------|----------|
 | Core | numpy, scipy, pandas | - |
-| io | - | astropy |
 | image | numpy, scipy | - |
 | sdo | numpy, scipy | astropy, sunpy |
 | dem | numpy | aiapy, astropy, sunpy |
@@ -33,37 +32,31 @@ pip install -e .
 | database | psycopg2-binary | pyyaml |
 | transfer | requests, beautifulsoup4 | paramiko (SFTP) |
 
+> `egghouse.io` was removed in v0.6.0. Use `astropy.io.fits` for FITS
+> and `PIL.Image` (Pillow) for other image formats directly.
+
 ---
 
 ## Quick Start
 
 ```python
-# 1. FITS 파일 읽기/쓰기
-from egghouse.io import read_fits, write_fits
-data, header = read_fits('image.fits')
-write_fits('output.fits', data, overwrite=True)
-
-# astropy 없이 FITS 읽기 (pure numpy)
-from egghouse.io import read_fits_simple
-data, header = read_fits_simple('image.fits')
-
-# 2. 이미지 전처리 (resize, mask, scaling)
+# 1. 이미지 전처리 (resize, mask, scaling)
 from egghouse.image import resize_image, circle_mask, bytescale_image
 resized = resize_image(data, (1024, 1024))
 mask = circle_mask(4096, radius=1600)
 display = bytescale_image(data, imin=0, imax=5000)
 
-# 3. SDO Level 1.5 변환
+# 2. SDO Level 1.5 변환
 from egghouse.sdo import to_level15
 level15_map = to_level15('aia_lev1.fits')  # auto-detect AIA/HMI
 
-# 3b. JSOC export (drms-based AIA data acquisition; v0.4+)
+# 2b. JSOC export (drms-based AIA data acquisition; v0.4+)
 from datetime import datetime
 from egghouse.sdo import jsoc_export, aia_euv_query
 q = aia_euv_query([datetime(2014, 1, 1, 12, 0, 0)])
 urls = jsoc_export(q, email='you@example.com')
 
-# 3c. AIA Level 1 -> 1.5 prep stages (v0.5+)
+# 2c. AIA Level 1 -> 1.5 prep stages (v0.5+)
 from egghouse.sdo import (
     aia_update_pointing, aia_respike,
     aia_correct_degradation, aia_deconvolve,
@@ -71,7 +64,7 @@ from egghouse.sdo import (
 )
 # Compose at the call site; pass cached tables/PSFs for batch jobs.
 
-# 4. DEM (Differential Emission Measure) 분석
+# 3. DEM (Differential Emission Measure) 분석
 from egghouse.sdo import dem_sites, get_temperature_response, get_default_temperatures
 temps = get_default_temperatures(n_bins=50)
 # v0.3+ : aiapy 0.12 removed Channel.temperature_response, so the canonical
@@ -84,25 +77,6 @@ dem, info = dem_sites(intensities, errors, response, temps)
 ---
 
 ## Modules
-
-### `egghouse.io`
-File I/O for scientific data formats (FITS, BMP).
-
-```python
-from egghouse.io import read_fits, write_fits, read_fits_header, append_fits
-
-# FITS read/write
-data, header = read_fits('image.fits')
-header = read_fits_header('image.fits')  # header only (memory-efficient)
-write_fits('output.fits', data, header={'OBJECT': 'Sun'}, overwrite=True)
-append_fits('output.fits', ext_data, header={'EXTNAME': 'EXT1'})
-
-# BMP read/write (no external dependencies)
-from egghouse.io import read_bmp, write_bmp
-data, info = read_bmp('image.bmp')       # (H, W, 3) uint8 RGB
-write_bmp('output.bmp', data)            # 24-bit RGB
-write_bmp('gray.bmp', gray_uint8)        # 8-bit grayscale
-```
 
 ### `egghouse.image`
 Generic image processing utilities.
@@ -393,7 +367,6 @@ password: password
 ## Documentation
 
 **Detailed Guides** (in [docs/](docs/) folder):
-- [io_guide.md](docs/io_guide.md) - FITS, BMP file I/O
 - [image_guide.md](docs/image_guide.md) - Image processing utilities
 - [sdo_guide.md](docs/sdo_guide.md) - SDO/AIA/HMI data processing
 - [config_guide.md](docs/config_guide.md) - Configuration management
