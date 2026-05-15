@@ -173,13 +173,20 @@ SDO/AIA and SDO/HMI data processing utilities.
 ### DEM (Differential Emission Measure)
 
 SITES algorithm implementation for DEM inversion from multi-wavelength AIA observations.
-Requires aiapy for accurate temperature response functions.
+
+**Temperature response source (v0.3+):** aiapy 0.12 removed
+`Channel.temperature_response`, so the canonical CHIANTI-based response is now
+loaded from an SSW `aia_get_response.pro` `.npz` archive (e.g. the one shipped
+with demregpy). See `load_ssw_temperature_response` below. The built-in
+Gaussian fallback in `get_temperature_response` is **not** suitable for
+research-quality DEM analysis.
 
 **Response Functions:**
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `get_temperature_response` | `(wavelengths=None, temperatures=None, time=None, include_degradation=True) -> ndarray` | Get AIA temperature response K(T) for each channel |
+| `get_temperature_response` | `(wavelengths=None, temperatures=None, time=None, include_degradation=True, ssw_table_path=None, ssw_response_key='response_v10_en') -> ndarray` | Get AIA temperature response K(T). Pass `ssw_table_path` to load from an SSW `.npz`. Without it, raises `NotImplementedError` when aiapy is installed (aiapy 0.12+ no longer supplies K(T) directly), or falls back to a Gaussian approximation with a `UserWarning` when aiapy is not installed. |
+| `load_ssw_temperature_response` | `(path, *, log_temperatures=None, wavelengths=None, response_key='response_v10_en') -> ndarray` | Load and interpolate K(T) from an SSW `aia_get_response` `.npz` archive. Archive keys: `log_temperature`, `channels`, and one or more response arrays (`response_v9_en`, `response_v10_en`, `response_v10_en_nb`). Returns shape `(n_temperatures, n_wavelengths)`. Linear interpolation in log T; refuses extrapolation. |
 | `get_default_temperatures` | `(logt_min=5.5, logt_max=7.5, n_bins=100) -> ndarray` | Get default log-spaced temperature grid |
 
 **SITES Algorithm:**
