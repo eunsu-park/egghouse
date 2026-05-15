@@ -57,6 +57,12 @@ display = bytescale_image(data, imin=0, imax=5000)
 from egghouse.sdo import to_level15
 level15_map = to_level15('aia_lev1.fits')  # auto-detect AIA/HMI
 
+# 3b. JSOC export (drms-based AIA data acquisition; v0.4+)
+from datetime import datetime
+from egghouse.sdo import jsoc_export, aia_euv_query
+q = aia_euv_query([datetime(2014, 1, 1, 12, 0, 0)])
+urls = jsoc_export(q, email='you@example.com')
+
 # 4. DEM (Differential Emission Measure) 분석
 from egghouse.sdo import dem_sites, get_temperature_response, get_default_temperatures
 temps = get_default_temperatures(n_bins=50)
@@ -179,6 +185,45 @@ dem_cube, map_info = dem_map(image_cube, error_cube, response, temps)
 # Derived quantities
 em = get_emission_measure(dem, temps)  # Total emission measure
 t_mean = get_mean_temperature(dem, temps)  # DEM-weighted mean temperature
+```
+
+### `egghouse.sdo` — JSOC export (drms-based)
+
+For data acquisition from the Joint Science Operations Center (JSOC).
+The `drms` package is a soft dependency: imported only when the JSOC
+functions are actually called.
+
+```python
+from datetime import datetime, timedelta
+from egghouse.sdo import (
+    jsoc_export, aia_euv_query,
+    cached_correction_table, cached_pointing_table,
+)
+
+# Compose a record-set selecting AIA EUV records near specific timestamps,
+# filtered to a given set of channels. Multiple timestamps are batched
+# into a single export request.
+times = [datetime(2014, 1, 1, h, 0, 0) for h in range(0, 24, 6)]
+query = aia_euv_query(
+    times,
+    wavelengths=[94, 131, 171, 193, 211, 335],
+    tolerance=timedelta(seconds=12),
+)
+urls = jsoc_export(query, email='you@example.com')
+
+# Download the URLs with retry / atomic-write semantics:
+from egghouse.transfer import download_parallel
+tasks = [(u, f'/data/{u.rsplit("/", 1)[-1]}') for u in urls]
+download_parallel(tasks, parallel=4)
+
+# Memoize the slow aiapy calibration tables so batch Level 1.5 jobs do
+# not re-hit JSOC on every record.
+correction = cached_correction_table('/cache/correction_table.pkl')
+pointing = cached_pointing_table(
+    '/cache/pointing_table.pkl',
+    start=datetime(2014, 1, 1),
+    end=datetime(2014, 1, 2),
+)
 ```
 
 ### `egghouse.config`
