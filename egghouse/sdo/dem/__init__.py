@@ -22,6 +22,7 @@ References:
 from .response import (
     get_temperature_response,
     get_default_temperatures,
+    load_ssw_temperature_response,
     HAS_AIAPY,
 )
 from .sites import (
@@ -39,6 +40,7 @@ __all__ = [
     # Response functions
     "get_temperature_response",
     "get_default_temperatures",
+    "load_ssw_temperature_response",
     "HAS_AIAPY",
     # SITES algorithm
     "dem_sites",

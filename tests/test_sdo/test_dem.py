@@ -34,9 +34,22 @@ class TestGetDefaultTemperatures:
 
 
 class TestGetTemperatureResponse:
-    """Tests for get_temperature_response function."""
+    """Tests for get_temperature_response function.
 
-    def test_fallback_response_shape(self):
+    These tests exercise the built-in Gaussian *fallback* path, which is only
+    reached when aiapy is unavailable. The fallback is force-enabled via
+    monkeypatch so the suite stays meaningful regardless of whether aiapy is
+    installed in the test environment.
+    """
+
+    @pytest.fixture
+    def force_fallback(self, monkeypatch):
+        from egghouse.sdo.dem import response as _resp
+
+        monkeypatch.setattr(_resp, "HAS_AIAPY", False)
+        return monkeypatch
+
+    def test_fallback_response_shape(self, force_fallback):
         """Test fallback response has correct shape."""
         from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
 
@@ -46,7 +59,7 @@ class TestGetTemperatureResponse:
 
         assert response.shape == (50, 6)
 
-    def test_fallback_response_positive(self):
+    def test_fallback_response_positive(self, force_fallback):
         """Test fallback response values are positive."""
         from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
 
@@ -56,7 +69,7 @@ class TestGetTemperatureResponse:
 
         assert np.all(response >= 0)
 
-    def test_custom_wavelengths(self):
+    def test_custom_wavelengths(self, force_fallback):
         """Test response with custom wavelengths."""
         from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
 
@@ -69,7 +82,7 @@ class TestGetTemperatureResponse:
 
         assert response.shape == (30, 3)
 
-    def test_invalid_wavelength(self):
+    def test_invalid_wavelength(self, force_fallback):
         """Test error on invalid wavelength."""
         from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
 
@@ -77,6 +90,126 @@ class TestGetTemperatureResponse:
         with pytest.raises(ValueError, match="Unknown wavelength"):
             with pytest.warns(UserWarning):
                 get_temperature_response(wavelengths=[999], temperatures=temps)
+
+    def test_aiapy_path_raises_notimplemented(self):
+        """When aiapy is installed, the disabled aiapy path must raise a clear
+        NotImplementedError rather than silently failing on the removed
+        ``Channel.temperature_response`` upstream API."""
+        from egghouse.sdo.dem import response as _resp
+        from egghouse.sdo.dem import get_default_temperatures, get_temperature_response
+
+        if not _resp.HAS_AIAPY:
+            pytest.skip("aiapy not installed; aiapy path is not exercised here")
+        temps = get_default_temperatures(n_bins=10)
+        with pytest.raises(NotImplementedError, match="ssw_table_path"):
+            get_temperature_response(temperatures=temps)  # no ssw_table_path -> aiapy path
+
+
+def _make_synthetic_ssw_npz(path, *, n_t=11, response_key="response_v10_en"):
+    """Build a tiny SSW-shaped .npz fixture for the SSW loader tests.
+
+    Layout matches what ``aia_get_response.pro`` (IDL SSW) produces and what
+    demregpy consumes: ``log_temperature`` (n_T,), ``channels`` (n_lambda,),
+    one or more response arrays of shape (n_lambda, n_T).
+    """
+    log_t = np.linspace(5.5, 7.5, n_t)
+    channels = np.array([94, 131, 171, 193, 211, 335], dtype=np.int64)
+    # Distinguishable per-channel Gaussian peaks so reordering can be verified.
+    peaks = {94: 6.8, 131: 5.6, 171: 5.9, 193: 6.2, 211: 6.3, 335: 6.4}
+    response = np.zeros((channels.size, log_t.size), dtype=np.float64)
+    for i, ch in enumerate(channels):
+        response[i] = np.exp(-0.5 * ((log_t - peaks[int(ch)]) / 0.25) ** 2)
+    np.savez(
+        path,
+        log_temperature=log_t,
+        channels=channels,
+        **{response_key: response},
+    )
+    return log_t, channels, response
+
+
+class TestLoadSswTemperatureResponse:
+    """Tests for load_ssw_temperature_response and the SSW dispatch in
+    get_temperature_response."""
+
+    def test_returns_source_grid_when_no_interpolation(self, tmp_path):
+        from egghouse.sdo.dem import load_ssw_temperature_response
+
+        path = tmp_path / "ssw.npz"
+        log_t, channels, response = _make_synthetic_ssw_npz(path)
+
+        out = load_ssw_temperature_response(path)
+        # (n_T, n_lambda), channels in AIA_DEM_WAVELENGTHS order
+        assert out.shape == (log_t.size, channels.size)
+        np.testing.assert_allclose(out, response.T)
+
+    def test_interpolates_to_target_log_t(self, tmp_path):
+        from egghouse.sdo.dem import load_ssw_temperature_response
+
+        path = tmp_path / "ssw.npz"
+        log_t, _, response = _make_synthetic_ssw_npz(path, n_t=21)
+
+        # Pick a strict subset of the source grid; interp at a known grid
+        # point must reproduce the source value exactly.
+        target_log_t = log_t[[3, 7, 12, 18]]
+        out = load_ssw_temperature_response(path, log_temperatures=target_log_t)
+        assert out.shape == (4, 6)
+        np.testing.assert_allclose(out, response[:, [3, 7, 12, 18]].T)
+
+    def test_reorders_channels(self, tmp_path):
+        from egghouse.sdo.dem import load_ssw_temperature_response
+
+        path = tmp_path / "ssw.npz"
+        _, _, response = _make_synthetic_ssw_npz(path)
+
+        out = load_ssw_temperature_response(path, wavelengths=[171, 94])
+        # Column 0 of the SSW table is 94; column 2 is 171. The output must
+        # therefore reorder to (171, 94).
+        np.testing.assert_allclose(out[:, 0], response[2])  # 171 row
+        np.testing.assert_allclose(out[:, 1], response[0])  # 94  row
+
+    def test_missing_wavelength_raises(self, tmp_path):
+        from egghouse.sdo.dem import load_ssw_temperature_response
+
+        path = tmp_path / "ssw.npz"
+        _make_synthetic_ssw_npz(path)
+        with pytest.raises(KeyError, match="not found"):
+            load_ssw_temperature_response(path, wavelengths=[999])
+
+    def test_missing_response_key_raises(self, tmp_path):
+        from egghouse.sdo.dem import load_ssw_temperature_response
+
+        path = tmp_path / "ssw.npz"
+        _make_synthetic_ssw_npz(path, response_key="response_v10_en")
+        with pytest.raises(KeyError, match="response_v9_en"):
+            load_ssw_temperature_response(path, response_key="response_v9_en")
+
+    def test_out_of_range_log_t_raises(self, tmp_path):
+        from egghouse.sdo.dem import load_ssw_temperature_response
+
+        path = tmp_path / "ssw.npz"
+        _make_synthetic_ssw_npz(path)
+        with pytest.raises(ValueError, match="outside the source grid"):
+            load_ssw_temperature_response(
+                path, log_temperatures=np.array([5.0, 6.0])  # 5.0 < min(5.5)
+            )
+
+    def test_get_temperature_response_dispatches_to_ssw(self, tmp_path):
+        from egghouse.sdo.dem import (
+            get_default_temperatures,
+            get_temperature_response,
+            load_ssw_temperature_response,
+        )
+
+        path = tmp_path / "ssw.npz"
+        _make_synthetic_ssw_npz(path, n_t=21)
+        temps = get_default_temperatures(n_bins=11)  # log T 5.5..7.5 linear
+
+        via_get = get_temperature_response(temperatures=temps, ssw_table_path=path)
+        via_load = load_ssw_temperature_response(
+            path, log_temperatures=np.log10(temps)
+        )
+        np.testing.assert_allclose(via_get, via_load)
 
 
 class TestDemSites:
