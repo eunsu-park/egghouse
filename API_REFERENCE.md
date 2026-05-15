@@ -148,6 +148,20 @@ SDO/AIA and SDO/HMI data processing utilities.
 | `batch_to_level15` | `(fits_files, output_dir, instrument=None, overwrite=False, progress_callback=None, **kwargs) -> List[str]` | Batch Level 1.5 conversion |
 | `get_level_info` | `(fits_file) -> dict` | Get processing level info from FITS |
 
+### JSOC (drms-based data acquisition; v0.4+)
+
+Soft dependency on the `drms` package — imported inside the functions
+that need it.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `jsoc_export` | `(query, *, email, method='url', protocol='fits', client=None) -> list[str]` | Submit a JSOC DRMS export request; block until staging completes; return staged URLs. Raises `RuntimeError` if the request did not succeed. |
+| `aia_euv_query` | `(times, *, wavelengths=AIA_DEM_WAVELENGTHS, series=AIA_LEV1_EUV_SERIES, tolerance=timedelta(seconds=12)) -> str` | Compose a DRMS record-set string selecting AIA EUV records near each `datetime` in `times`, filtered to the given wavelengths. Multiple times are concatenated into one export. |
+| `cached_correction_table` | `(path) -> astropy.table.Table` | Pickle-cached `aiapy.calibrate.util.get_correction_table()`. First call fetches and writes; subsequent calls deserialize. |
+| `cached_pointing_table` | `(path, *, start, end) -> astropy.table.Table` | Pickle-cached `aiapy.calibrate.util.get_pointing_table(start, end)`. Cache file is reused as-is; delete to refresh. |
+
+**Constants:** `AIA_LEV1_EUV_SERIES = "aia.lev1_euv_12s"`.
+
 ### Stacking
 
 | Class/Function | Signature | Description |

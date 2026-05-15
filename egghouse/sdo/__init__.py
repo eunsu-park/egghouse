@@ -62,6 +62,13 @@ from .quality import (
     HMI_QUALITY_BITS,
     QUALLEV0_BITS,
 )
+from .jsoc import (
+    jsoc_export,
+    aia_euv_query,
+    cached_correction_table,
+    cached_pointing_table,
+    AIA_LEV1_EUV_SERIES,
+)
 from .dem import (
     # Response functions
     get_temperature_response,
@@ -129,6 +136,12 @@ __all__ = [
     'AIA_QUALITY_BITS',
     'HMI_QUALITY_BITS',
     'QUALLEV0_BITS',
+    # JSOC export
+    'jsoc_export',
+    'aia_euv_query',
+    'cached_correction_table',
+    'cached_pointing_table',
+    'AIA_LEV1_EUV_SERIES',
     # DEM - Response functions
     'get_temperature_response',
     'get_default_temperatures',

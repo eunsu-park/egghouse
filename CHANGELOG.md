@@ -4,6 +4,38 @@ All notable changes to **egghouse** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] — 2026-05-15
+
+### Added
+
+- **New module `egghouse.sdo.jsoc`** consolidating JSOC export utilities
+  (partial migration from the soon-to-be-retired
+  `solar-and-space-weather` package).
+    - `jsoc_export(query, *, email, method='url', protocol='fits', client=None)`
+      submits a DRMS export request, blocks until staging is done, and
+      returns the resulting URL list. Network-bound; pair it with
+      `egghouse.transfer.download_parallel` for retries.
+    - `aia_euv_query(times, *, wavelengths, series, tolerance)` composes
+      a DRMS record-set string selecting AIA EUV records near each
+      timestamp, optionally filtered to specific channels. Multiple
+      timestamps are concatenated into a single export request.
+    - `cached_correction_table(path)` and
+      `cached_pointing_table(path, *, start, end)` memoize the
+      slow-to-fetch aiapy calibration tables to disk so batch jobs do
+      not re-hit JSOC on every record.
+    - All four are re-exported from `egghouse.sdo`.
+- The `drms` package is now a soft dependency: `jsoc.py` imports it
+  inside the functions that need it, so simply importing the module
+  does not require `drms` to be installed.
+
+### Notes
+
+- Tests cover the local query composer, cache-hit reads, and the
+  `jsoc_export` failure / success paths via a stub client; the
+  network-bound code paths are deliberately not exercised.
+
+---
+
 ## [0.3.0] — 2026-05-15
 
 ### Added
