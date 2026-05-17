@@ -285,6 +285,30 @@ PostgreSQL database utilities.
 | `create_example_config` | `(path) -> None` | Create example config file |
 | `to_dataframe` | `(results, columns) -> DataFrame` | Convert query results to pandas DataFrame |
 
+### Declarative schema (v0.7+)
+
+Instrument-blind: any declarative `schema_config` builds exactly those
+tables. Pure builders need no DB connection.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `build_create_table_sql` | `(table, table_spec) -> str` | Pure: spec → CREATE TABLE (composite `_primary_key` / `_unique`) |
+| `build_index_sql` | `(table, indexes) -> list[str]` | Pure: `_indexes` → CREATE INDEX statements |
+| `split_schema_meta` | `(table_spec) -> (columns, pk, unique, indexes)` | Pure, non-mutating metadata split |
+| `create_tables_from_schema` | `(db_config, schema_config, *, drop=False, verbose=False) -> dict` | Create tables; returns `{table: created\|recreated\|skipped}` |
+| `create_database` | `(db_config, *, verbose=False) -> bool` | Idempotent CREATE DATABASE via admin connection |
+| `initialize_database` | `(db_config, schema_config, *, verbose=False) -> dict` | create_database + create_tables_from_schema |
+
+### Bulk records (v0.7+)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `normalize_records` | `(df) -> list[dict]` | DataFrame → rows, lowercased cols, NaN→None |
+| `build_upsert_sql` | `(table, columns, conflict_columns) -> str` | Pure INSERT … ON CONFLICT DO NOTHING (composite-aware) |
+| `upsert_dataframe` | `(df, table, db_config, *, conflict_columns='datetime', batch=1000) -> int` | Idempotent bulk upsert; returns inserted count |
+| `find_orphans` | `(file_paths) -> list[str]` | Paths no longer on disk |
+| `delete_orphans` | `(table, db_config, *, file_column='file_path') -> int` | Delete rows whose file is gone |
+
 ### PostgresManager Methods
 
 | Method | Description |

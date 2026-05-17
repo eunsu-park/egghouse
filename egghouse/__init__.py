@@ -4,7 +4,7 @@ egghouse - A personal arsenal of reusable code for solar physics research
 This package provides utilities for solar physics data analysis and processing.
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 __author__ = "Eunsu Park"
 
 __all__ = ["database", "sdo", "image", "transfer", "config"]

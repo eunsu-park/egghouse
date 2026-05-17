@@ -4,6 +4,60 @@ All notable changes to **egghouse** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] — 2026-05-17
+
+### Added — declarative schema + bulk record helpers in `egghouse.database`
+
+Generic, instrument-blind DB infrastructure lifted (in spirit) from the
+setup-sw-db `core/database.py` so any project can build a schema and
+register records with just a config dict + an egghouse import.
+
+`egghouse.database.schema`:
+- `build_create_table_sql(table, table_spec)` / `build_index_sql(table, indexes)`
+  / `split_schema_meta(table_spec)` — pure SQL/metadata builders
+  (no DB connection; unit-testable without PostgreSQL).
+- `create_tables_from_schema(db_config, schema_config, *, drop, verbose)`
+  — declarative table creation supporting composite `_primary_key`,
+  `_unique`, and `_indexes`. Skips existing tables unless `drop=True`.
+- `create_database(db_config)` — idempotent CREATE DATABASE via an
+  admin connection (template1 → postgres).
+- `initialize_database(db_config, schema_config)` — create_database +
+  create_tables_from_schema.
+
+`egghouse.database.records`:
+- `normalize_records(df)` — DataFrame → list[dict], lowercased columns,
+  NaN→None (handles the empty-DataFrame edge that the original
+  setup-sw-db code crashed on).
+- `build_upsert_sql(table, columns, conflict_columns)` — pure
+  `INSERT ... ON CONFLICT (...) DO NOTHING`, composite-key aware.
+- `upsert_dataframe(df, table, db_config, *, conflict_columns, batch)`
+  — idempotent bulk upsert; tolerates secondary UNIQUE violations as
+  skips.
+- `find_orphans(file_paths)` / `delete_orphans(table, db_config, *,
+  file_column)` — drop rows whose referenced file is gone.
+
+All public names re-exported from `egghouse.database`. The schema
+format is **instrument-blind** — feeding any declarative config (solar
+images, space-weather, anything) through `initialize_database` creates
+exactly those tables; no domain code required.
+
+### Notes
+
+- Identifier safety: table/column/index identifiers are validated
+  against `^[A-Za-z_][A-Za-z0-9_]*$` and raise `ValueError` on
+  violation (schema configs are developer-authored, but a typo that
+  produced injectable DDL would otherwise be silent). Column *types*
+  are free-form text.
+- This is purely additive; existing `PostgresManager` / `config`
+  behavior is unchanged. setup-sw-db (which git-pins egghouse and uses
+  only `PostgresManager`) is unaffected.
+- Tests: 26 new cases — pure builders driven directly, table-creation
+  logic driven through a fake db that records SQL. The
+  connection-opening wrappers are integration-level and not run in the
+  unit suite. Full suite: 214 passed.
+
+---
+
 ## [0.6.0] — 2026-05-16
 
 ### Removed (breaking) — `egghouse.io` retired
