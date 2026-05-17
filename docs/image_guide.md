@@ -506,14 +506,14 @@ binary = adaptive_threshold(image, block_size=15)
 ### 태양 이미지 처리
 
 ```python
-from egghouse.io import read_fits
+from astropy.io import fits  # egghouse.io는 v0.6.0에서 제거됨
 from egghouse.image import (
     resize_image, circle_mask, bytescale_image, crop_or_pad,
     gaussian_smooth, find_disk_center, get_image_stats
 )
 
 # 1. FITS 파일 읽기
-data, header = read_fits('aia_171.fits')
+data, header = fits.getdata('aia_171.fits', header=True)
 
 # 2. 크기 정규화
 data = crop_or_pad(data, (4096, 4096))

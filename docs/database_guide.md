@@ -2,6 +2,14 @@
 
 PostgreSQL 데이터베이스 관리 유틸리티.
 
+> **v0.7+ 신규 기능**: 선언형 스키마 생성(`create_tables_from_schema`,
+> `initialize_database`)과 대량 레코드 헬퍼(`upsert_dataframe`,
+> `delete_orphans`)는 본 가이드에 아직 별도 절이 없습니다. 또한
+> `egghouse.swdb`(v0.8, 솔라/우주기상 DB 도메인 레이어: 참조 스키마 +
+> FITS 핸들러 + 디렉터리 등록)도 마찬가지입니다. 사용 예시는 루트
+> `README.MD`의 Modules 절, 함수 시그니처는 `API_REFERENCE.md`, 변경
+> 이력은 `CHANGELOG.md`를 참조하세요.
+
 ---
 
 ## 개요
