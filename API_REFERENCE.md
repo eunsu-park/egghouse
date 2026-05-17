@@ -324,6 +324,32 @@ tables. Pure builders need no DB connection.
 
 ---
 
+## egghouse.swdb (v0.8+)
+
+Solar / space-weather DB domain layer on top of `egghouse.database`.
+AIA-only; other instruments subclass `FitsHandler` per project.
+
+### Reference schemas
+
+| Constant | Description |
+|----------|-------------|
+| `SDO_SCHEMA` | `(telescope, channel, datetime)` PK, `UNIQUE(file_path)`. Byte-identical to setup-sw-db's `sdo`. |
+| `LASCO_SCHEMA` | `(camera, datetime)` PK. |
+| `SECCHI_SCHEMA` | `(datatype, spacecraft, instrument, channel, datetime)` PK. |
+
+### Classes / Functions
+
+| Name | Signature | Description |
+|------|-----------|-------------|
+| `ValidationResult` | dataclass; `.ok(metadata, file_path)` / `.fail(error, file_path)` | Type-safe FITS validation result |
+| `FitsHandler` | ABC: `extract_metadata`, `to_db_record`, `target_dir` | Instrument FITS handler interface |
+| `AiaFitsHandler` | `(*, check_data=False, require_quality_zero=False)` | SDO/AIA handler; keys on `T_OBS` (UTC) |
+| `scan_fits` | `(scan_dir, *, pattern='*.fits', exclude_substrings=('spike',)) -> list[Path]` | Recursive FITS listing |
+| `register_fits_dir` | `(scan_dir, *, handler, table, db_config, conflict_columns, move_root=None, error_dirs=None, pattern='*.fits', exclude_substrings=('spike',), parallel=1, batch_size=1000, verbose=False) -> RegisterReport` | Scan → validate → idempotent upsert → optional archive |
+| `RegisterReport` | dataclass; `.summary()` | Counts: scanned/valid/inserted/skipped_existing/errors (reconcile) |
+
+---
+
 ## egghouse.transfer
 
 File transfer utilities for HTTP, FTP, and SFTP protocols.
