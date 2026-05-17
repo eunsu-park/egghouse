@@ -3,11 +3,11 @@
 SDO (Solar Dynamics Observatory) AIA 및 HMI 데이터 처리 유틸리티.
 
 > **v0.4+ 신규 기능**: JSOC drms export(`jsoc_export`, `aia_euv_query`,
-> v0.4), AIA Level 1→1.5 prep 단계(`aia_update_pointing`,
+> v0.4), AIA Level 1→1.5 prep 단계(`aia_update_pointing`, `aia_respike`,
 > `aia_correct_degradation`, `aia_deconvolve`, `mask_out_of_disk`,
-> 캐시 헬퍼, v0.5)는 본 가이드에 아직 별도 절이 없습니다. 사용 예시는
-> 루트 `README.MD`의 Modules 절, 함수 시그니처는 `API_REFERENCE.md`,
-> 변경 이력은 `CHANGELOG.md`를 참조하세요.
+> 캐시 헬퍼, v0.5)는 아래 **JSOC export** 및 **AIA Level 1 → 1.5 prep
+> 단계** 절을 참조하세요. 함수 시그니처는 `API_REFERENCE.md`, 변경
+> 이력은 `CHANGELOG.md`에도 정리되어 있습니다.
 
 ---
 
@@ -201,6 +201,318 @@ print(f"Is Level 1.5: {info['is_level15']}")
 if not info['is_level15']:
     m = to_level15('aia_171.fits')
 ```
+
+---
+
+## JSOC export (drms 기반, v0.4+)
+
+JSOC(jsoc.stanford.edu)의 DRMS export 시스템을 이용해 SDO/AIA 데이터를
+직접 스테이징하고 URL을 받아옵니다. `egghouse.sdo.jsoc` 모듈은 `drms`
+패키지를 **soft dependency**로 사용합니다 — 함수 본문 안에서 lazy import
+하므로 모듈을 단순 import 하는 것만으로는 `drms`가 필요하지 않습니다
+(쿼리 조합 로직은 네트워크 없이 테스트 가능). 받은 URL은
+`egghouse.transfer.download_parallel`에 넘겨 재시도/원자적 쓰기를
+활용해 내려받는 흐름을 권장합니다.
+
+### aia_euv_query
+
+여러 타임스탬프에 대한 AIA EUV 레코드를 선택하는 DRMS record-set
+문자열을 조합합니다. 각 시각마다 `tolerance` 구간을 스캔하며, 여러
+시각은 하나의 export 요청으로 연결됩니다.
+
+```python
+from datetime import datetime, timedelta
+from egghouse.sdo import aia_euv_query
+
+times = [
+    datetime(2014, 1, 1, 12, 0, 0),
+    datetime(2014, 1, 1, 13, 0, 0),
+    datetime(2014, 1, 1, 14, 0, 0),
+]
+
+# 기본 6개 DEM 채널, aia.lev1_euv_12s 시리즈
+query = aia_euv_query(times)
+print(query)
+# aia.lev1_euv_12s[2014.01.01_12:00:00_TAI/12s][...]/12s][? WAVELNTH=94 OR ... ?]
+
+# 특정 채널만, tolerance 확장
+query_171 = aia_euv_query(
+    times,
+    wavelengths=[171, 193],
+    tolerance=timedelta(seconds=24),
+)
+```
+
+#### 파라미터
+
+```python
+query = aia_euv_query(
+    times,                              # datetime 시퀀스 (non-empty)
+    wavelengths=AIA_DEM_WAVELENGTHS,    # 기본 6개 DEM 채널 (Å)
+    series=AIA_LEV1_EUV_SERIES,         # 'aia.lev1_euv_12s'
+    tolerance=timedelta(seconds=12),    # 각 시각 이후 스캔 폭 (>0)
+)
+```
+
+- naive `datetime`은 JSOC가 기대하는 TAI로 해석됩니다.
+- `times` 또는 `wavelengths`가 비어 있거나 `tolerance`가 0 이하면
+  `ValueError`가 발생합니다.
+
+### jsoc_export
+
+DRMS export 요청을 제출하고 스테이징이 끝날 때까지 블록한 뒤
+스테이징된 파일 URL 리스트를 반환합니다.
+
+```python
+from egghouse.sdo import jsoc_export
+
+urls = jsoc_export(
+    query,
+    email='you@example.com',   # jsoc.stanford.edu에 등록된 이메일
+)
+print(f"스테이징된 파일: {len(urls)}개")
+```
+
+#### 파라미터
+
+```python
+urls = jsoc_export(
+    query,                  # aia_euv_query 등이 만든 record-set 문자열
+    email='you@example.com',# JSOC export 등록 이메일 (필수, 키워드)
+    method='url',           # 'url'은 스테이징 완료까지 서버에서 블록
+    protocol='fits',        # 스테이징 파일 프로토콜
+    client=None,            # 재사용할 drms.Client (None이면 새로 생성)
+)
+```
+
+- `method='url'`은 데이터셋이 스테이징될 때까지 서버 측에서 대기 후
+  구체적인 URL을 반환합니다.
+- export가 성공하지 못하면 `RuntimeError`가 발생합니다. 매칭 레코드가
+  없으면 빈 리스트가 반환될 수 있습니다.
+
+### cached_correction_table / cached_pointing_table
+
+배치 작업에서 매 레코드마다 JSOC에서 다시 가져오면 느린 aiapy
+보정 테이블을 디스크에 pickle 캐시합니다. 최초 호출 시 fetch 후 기록,
+이후 호출은 디스크에서 역직렬화하여 네트워크 왕복을 건너뜁니다.
+
+```python
+from datetime import datetime
+from egghouse.sdo import cached_correction_table, cached_pointing_table
+
+# degradation 보정 테이블 (aiapy.calibrate.util.get_correction_table)
+corr = cached_correction_table('cache/aia_correction.pkl')
+
+# 시간 구간별 pointing 테이블 (end는 aiapy 관례상 exclusive)
+pointing = cached_pointing_table(
+    'cache/aia_pointing.pkl',
+    start=datetime(2014, 1, 1),
+    end=datetime(2014, 1, 2),
+)
+```
+
+- `cached_pointing_table`의 `start`/`end`는 캐시를 **새로 채울 때만**
+  사용됩니다. 오래된 캐시 파일은 그대로 재사용되므로, 다른 시간
+  창이 필요하면 파일을 먼저 삭제하세요.
+- 두 함수 모두 부모 디렉터리를 필요 시 생성합니다.
+
+### AIA_LEV1_EUV_SERIES 상수
+
+```python
+from egghouse.sdo import AIA_LEV1_EUV_SERIES
+
+print(AIA_LEV1_EUV_SERIES)  # 'aia.lev1_euv_12s'
+```
+
+### End-to-end: query → export → 병렬 다운로드
+
+```python
+from datetime import datetime
+from egghouse.sdo import aia_euv_query, jsoc_export
+from egghouse.transfer import download_parallel
+
+# 1. 여러 타임스탬프에 대한 record-set 조합
+times = [
+    datetime(2014, 1, 1, 12, 0, 0),
+    datetime(2014, 1, 1, 13, 0, 0),
+    datetime(2014, 1, 1, 14, 0, 0),
+]
+query = aia_euv_query(times, wavelengths=[94, 131, 171, 193, 211, 335])
+
+# 2. JSOC export → 스테이징된 URL 리스트
+urls = jsoc_export(query, email='you@example.com')
+
+# 3. (url, dest) 태스크로 변환 후 병렬 다운로드
+import os
+os.makedirs('data', exist_ok=True)
+tasks = [(u, os.path.join('data', u.rsplit('/', 1)[-1])) for u in urls]
+
+result = download_parallel(tasks, parallel=4, max_retries=3)
+print(f"다운로드: {result['downloaded']}, 실패: {result['failed']}")
+```
+
+---
+
+## AIA Level 1 → 1.5 prep 단계 (v0.5+)
+
+`to_level15`(위 절)는 AIA/HMI 공통으로 회전·리샘플링·패딩을
+수행하지만, aiapy 기반의 추가 prep 단계는 다루지 않습니다.
+`egghouse.sdo.prep` 모듈은 그 빈자리를 채우는 aiapy 래퍼들을
+제공합니다. `sunpy`/`aiapy`/`astropy`는 모두 함수 본문 안에서 lazy
+import 되므로, 모듈 import 자체는 가볍고 aiapy를 강제하지 않습니다.
+
+**aiapy 정식 처리 순서.** AIA Level 1 → 1.5 변환의 표준(canonical)
+순서는 다음과 같습니다:
+
+```
+update_pointing → respike → correct_degradation → deconvolve
+                → register / to_level15 (회전·리샘플)
+```
+
+`register`/`to_level15`(L1.5 등록)는 **마지막**에 적용합니다.
+`aia_correct_degradation`과 `aia_deconvolve`는 보정/PSF가 정의된
+AIA 채널(EUV + 304 Å: 94, 131, 171, 193, 211, 304, 335 Å) 외의
+파장에 대해서는 입력 맵을 **그대로 반환**하므로, 이종 채널이 섞인
+배치에 안전하게 일괄 적용할 수 있습니다.
+
+### aia_update_pointing
+
+JSOC master pointing 테이블로 AIA WCS 키워드를 갱신합니다
+(`aiapy.calibrate.update_pointing` 래퍼). 배치에서는
+`cached_pointing_table`로 미리 받아둔 테이블을 넘겨 매 레코드
+재요청을 피하세요.
+
+```python
+from sunpy.map import Map
+from egghouse.sdo import aia_update_pointing, cached_pointing_table
+from datetime import datetime
+
+pointing = cached_pointing_table(
+    'cache/pointing.pkl',
+    start=datetime(2014, 1, 1), end=datetime(2014, 1, 2),
+)
+
+m = Map('aia_171_lev1.fits')
+m = aia_update_pointing(m, pointing_table=pointing)
+# pointing_table=None이면 aiapy가 매번 JSOC에서 fetch
+```
+
+### aia_respike
+
+Level 1 파이프라인이 제거한 spike 픽셀을 다시 주입합니다
+(`aiapy.calibrate.respike` 래퍼). `spikes`를 주지 않으면
+`aiapy.calibrate.fetch_spikes`로 가져오는데, 레코드당 JSOC 왕복이
+발생하므로 배치에서는 미리 fetch 해 넘기는 것이 좋습니다.
+
+```python
+from egghouse.sdo import aia_respike
+
+m = aia_respike(m)                # spikes=None → 레코드별 fetch
+# m = aia_respike(m, spikes=prefetched_spikes)
+```
+
+### aia_correct_degradation
+
+시간 의존 유효면적(effective-area) 보정을 적용합니다
+(`aiapy.calibrate.correct_degradation` 래퍼). 보정이 정의되지 않은
+파장이면 맵을 그대로 반환합니다. `cached_correction_table` 결과를
+넘겨 JSOC fetch를 배치 전체로 분할상환하세요.
+
+```python
+from egghouse.sdo import aia_correct_degradation, cached_correction_table
+
+corr = cached_correction_table('cache/correction.pkl')
+m = aia_correct_degradation(m, correction_table=corr)
+```
+
+### aia_deconvolve
+
+AIA 맵을 PSF deconvolution 합니다 (`aiapy.psf.deconvolve` 래퍼).
+PSF 계산(`aiapy.psf.psf(...)`)이 채널당 수 분으로 가장 비싼
+부분이므로, `cached_aia_psfs`로 `{파장: PSF}` dict를 미리 만들어
+넘기세요. PSF가 제공되지 않는 파장이면 맵을 그대로 반환합니다.
+
+```python
+from egghouse.sdo import aia_deconvolve, cached_aia_psfs
+
+psfs = cached_aia_psfs('cache/aia_psfs.pkl')   # 표준 7개 채널
+m = aia_deconvolve(m, psfs=psfs)
+# psfs=None이면 호출 시 해당 채널 PSF를 직접 계산 (수 분)
+```
+
+### cached_aia_psfs
+
+AIA PSF를 채널별로 계산해 `{파장(int): PSF 배열}` dict로 pickle
+캐시합니다. 캐시 파일이 없거나 요청한 파장을 **모두** 포함하지
+않으면 전체 세트로 재생성합니다.
+
+```python
+from egghouse.sdo import cached_aia_psfs
+
+# 기본: 7개 보정 채널 (94, 131, 171, 193, 211, 304, 335)
+psfs = cached_aia_psfs('cache/aia_psfs.pkl')
+
+# 일부 채널만
+psfs_subset = cached_aia_psfs('cache/aia_psfs.pkl', wavelengths=[171, 193])
+```
+
+### mask_out_of_disk
+
+태양 림 바깥 픽셀을 sentinel 값으로 채운 `sunpy.Map` 복사본을
+반환합니다 (입력은 변경하지 않음). 림 반경은 헤더의 `R_SUN`(픽셀
+단위)이 있으면 그것을, 없으면 `RSUN_OBS / CDELT1`을 사용하고, 둘
+다 없으면 `KeyError`를 던집니다. 다운스트림(예: DEM 모델 학습
+루프)이 off-disk 영역을 무시하도록 표시할 때 유용합니다.
+
+```python
+from egghouse.sdo import mask_out_of_disk
+
+masked = mask_out_of_disk(m, fill_value=-5000.0)  # 기본 sentinel -5000.0
+```
+
+### 배치 워크플로우: 캐시/PSF 1회 선취 후 일괄 prep
+
+```python
+from datetime import datetime
+import glob
+from sunpy.map import Map
+from egghouse.sdo import (
+    cached_pointing_table,
+    cached_correction_table,
+    cached_aia_psfs,
+    aia_update_pointing,
+    aia_respike,
+    aia_correct_degradation,
+    aia_deconvolve,
+    to_level15,
+    mask_out_of_disk,
+)
+
+# 1. 느린 테이블/PSF를 배치 시작 전 1회만 선취 (디스크 캐시)
+pointing = cached_pointing_table(
+    'cache/pointing.pkl',
+    start=datetime(2014, 1, 1), end=datetime(2014, 1, 2),
+)
+corr = cached_correction_table('cache/correction.pkl')
+psfs = cached_aia_psfs('cache/aia_psfs.pkl')
+
+# 2. 각 파일에 aiapy 정식 순서로 prep 적용
+for path in sorted(glob.glob('/data/aia_*_lev1.fits')):
+    m = Map(path)
+    m = aia_update_pointing(m, pointing_table=pointing)
+    m = aia_respike(m)
+    m = aia_correct_degradation(m, correction_table=corr)
+    m = aia_deconvolve(m, psfs=psfs)
+    # 3. 마지막에 L1.5 등록 (회전·리샘플·패딩)
+    m = to_level15(m)
+    # 4. (선택) off-disk 마스킹
+    m = mask_out_of_disk(m)
+    m.save(path.replace('_lev1', '_lev15'), overwrite=True)
+```
+
+비-AIA 또는 보정 미정의 파장이 섞여 있어도
+`aia_correct_degradation`/`aia_deconvolve`가 해당 맵을 그대로
+통과시키므로 위 루프를 그대로 사용할 수 있습니다.
 
 ---
 

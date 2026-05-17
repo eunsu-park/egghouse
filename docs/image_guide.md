@@ -40,6 +40,7 @@ egghouse/image/
 | `crop_or_pad` | 정확한 크기로 조정 | - |
 | `flip_image` | 이미지 뒤집기 | - |
 | `roll_image` | 순환 이동 | - |
+| `bin_ndarray` | 블록 단위 n차원 다운비닝 (v0.5+) | - |
 
 ### Filters (필터링)
 | 함수 | 설명 |
@@ -262,6 +263,43 @@ rolled = roll_image(image, shift_y=10, shift_x=5)
 # 이미지 정렬에 활용
 for i, img in enumerate(images):
     aligned = roll_image(img, shift_y=0, shift_x=shifts[i])
+```
+
+---
+
+### bin_ndarray
+
+`bin_ndarray(array, new_shape, operation='sum')` (v0.5+)
+
+블록 단위 n차원 다운비닝. 배열을 `(n0, b0, n1, b1, ...)` 형태로
+reshape한 뒤 각 블록을 합산(`'sum'`) 또는 평균(`'mean'`)으로 축약함
+(겹침 없음). `new_shape`는 입력과 차원 수가 같아야 하며, 각 출력
+차원은 대응하는 입력 차원을 정확히 나누어 떨어지게 해야 함.
+
+매개변수:
+
+- `array`: 입력 n차원 배열.
+- `new_shape`: 목표 shape (tuple). `array.ndim`과 길이가 같아야 하고,
+  각 원소는 `array.shape[i]`를 나누어 떨어뜨려야 함.
+- `operation`: `'sum'`(기본값) 또는 `'mean'`. 블록 내 축약 방식.
+
+`operation`이 `'sum'`/`'mean'`이 아니거나, 차원 수가 맞지 않거나,
+나누어 떨어지지 않는 차원이 있으면 `ValueError`를 발생시킴.
+
+```python
+import numpy as np
+from egghouse.image import bin_ndarray
+
+# 4096x4096 태양 이미지를 1024x1024로 다운비닝 (4x4 블록)
+solar = np.random.rand(4096, 4096)
+
+# 블록 합산: 광자 수 등 가산량 보존
+binned_sum = bin_ndarray(solar, (1024, 1024), operation='sum')
+print(binned_sum.shape)  # (1024, 1024)
+
+# 블록 평균: 강도/밝기 스케일 유지
+binned_mean = bin_ndarray(solar, (1024, 1024), operation='mean')
+print(binned_mean.shape)  # (1024, 1024)
 ```
 
 ---
