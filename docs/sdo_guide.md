@@ -2,6 +2,13 @@
 
 SDO (Solar Dynamics Observatory) AIA 및 HMI 데이터 처리 유틸리티.
 
+> **v0.4+ 신규 기능**: JSOC drms export(`jsoc_export`, `aia_euv_query`,
+> v0.4), AIA Level 1→1.5 prep 단계(`aia_update_pointing`,
+> `aia_correct_degradation`, `aia_deconvolve`, `mask_out_of_disk`,
+> 캐시 헬퍼, v0.5)는 본 가이드에 아직 별도 절이 없습니다. 사용 예시는
+> 루트 `README.MD`의 Modules 절, 함수 시그니처는 `API_REFERENCE.md`,
+> 변경 이력은 `CHANGELOG.md`를 참조하세요.
+
 ---
 
 ## 개요
@@ -24,10 +31,10 @@ SDO 모듈은 태양 관측 데이터 처리를 위한 전문 도구를 제공�
 
 ```python
 from egghouse.sdo import aia_intscale
-from egghouse.io import read_fits
+from astropy.io import fits
 
-# FITS 파일 읽기
-data, header = read_fits('aia_171.fits')
+# FITS 파일 읽기 (egghouse.io는 v0.6.0에서 제거됨 — astropy 직접 사용)
+data, header = fits.getdata('aia_171.fits', header=True)
 exptime = header['EXPTIME']
 wavelnth = header['WAVELNTH']
 
@@ -76,9 +83,9 @@ print(f"스케일 방법: {cal['scale']}")
 
 ```python
 from egghouse.sdo import hmi_intscale
-from egghouse.io import read_fits
+from astropy.io import fits
 
-data, header = read_fits('hmi_m.fits')
+data, header = fits.getdata('hmi_m.fits', header=True)
 
 # 기본 범위 [-100, 100] Gauss (quiet sun)
 scaled = hmi_intscale(data)
@@ -96,12 +103,12 @@ scaled_strong = hmi_intscale(data, vmin=-2000, vmax=2000)
 
 ```python
 from egghouse.sdo import hmi_field_strength
-from egghouse.io import read_fits
+from astropy.io import fits
 
 # 벡터 자기장 성분 읽기
-bx, _ = read_fits('hmi_bx.fits')
-by, _ = read_fits('hmi_by.fits')
-bz, _ = read_fits('hmi_bz.fits')
+bx, _ = fits.getdata('hmi_bx.fits', header=True)
+by, _ = fits.getdata('hmi_by.fits', header=True)
+bz, _ = fits.getdata('hmi_bz.fits', header=True)
 
 # 총 자기장 강도: |B| = sqrt(Bx² + By² + Bz²)
 b_total = hmi_field_strength(bx, by, bz)
@@ -314,13 +321,13 @@ aligned = ndimage_shift(target_image, (dy, dx), order=3)
 
 ```python
 from egghouse.sdo import StreamingStackAccumulator
-from egghouse.io import read_fits
+from astropy.io import fits
 
 # 대용량 파일 처리
 acc = StreamingStackAccumulator(shape=(4096, 4096))
 
 for fits_file in large_file_list:
-    data, _ = read_fits(fits_file)
+    data, _ = fits.getdata(fits_file, header=True)
     acc.add(data)
 
 # 결과 추출
@@ -410,7 +417,7 @@ from egghouse.sdo import (
 ### AIA 데이터 처리
 
 ```python
-from egghouse.io import read_fits, write_fits
+from astropy.io import fits, write_fits
 from egghouse.sdo import to_level15, aia_intscale
 from egghouse.image import circle_mask, resize_image
 
@@ -592,7 +599,7 @@ print_all_quality_bits("HMI")
 
 ```python
 from egghouse.sdo import is_quality_ok, get_quality_summary
-from egghouse.io import read_fits_header
+from astropy.io import fits  # egghouse.io는 v0.6.0에서 제거됨
 import glob
 
 fits_files = glob.glob('/data/aia_171_*.fits')
@@ -600,7 +607,7 @@ fits_files = glob.glob('/data/aia_171_*.fits')
 # 품질 좋은 파일만 필터링
 good_files = []
 for f in fits_files:
-    header = read_fits_header(f)
+    header = fits.getheader(f)
     quality = header.get('QUALITY', 0)
 
     if is_quality_ok(quality):
@@ -640,18 +647,23 @@ from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
 # 기본 온도 그리드 (10^5.5 ~ 10^7.5 K)
 temps = get_default_temperatures(n_bins=100)
 
-# 온도 응답 함수 획득
-# aiapy 설치 시 정확한 응답, 미설치 시 근사값 사용
-response = get_temperature_response(temperatures=temps)
+# 온도 응답 함수 획득 (v0.3.0+)
+# aiapy 0.12에서 Channel.temperature_response가 제거되어,
+# 정식 CHIANTI 기반 응답은 SSW aia_get_response .npz 테이블에서 로드합니다
+# (예: demregpy에 동봉된 response_matrix.npz). ssw_table_path 없이 호출하면
+# aiapy 설치 환경에서는 NotImplementedError가 발생합니다.
+response = get_temperature_response(
+    temperatures=temps,
+    ssw_table_path='response_matrix.npz',
+)
 print(f"Response shape: {response.shape}")  # (100, 6)
 
-# 특정 관측 시간의 degradation 보정 적용
-from datetime import datetime
-obs_time = datetime(2024, 1, 15, 12, 0, 0)
-response_corrected = get_temperature_response(
-    temperatures=temps,
-    time=obs_time,
-    include_degradation=True
+# 또는 SSW 로더를 직접 호출:
+import numpy as np
+from egghouse.sdo.dem import load_ssw_temperature_response
+response = load_ssw_temperature_response(
+    'response_matrix.npz',
+    log_temperatures=np.log10(temps),
 )
 ```
 
@@ -778,12 +790,12 @@ image_cube = np.stack([
 ], axis=-1)
 error_cube = image_cube * 0.1
 
-# 3. 온도 응답 함수
+# 3. 온도 응답 함수 (v0.3.0+: SSW 테이블 경로 필요 — 위 설명 참조)
 temps = get_default_temperatures(n_bins=100)
 response = get_temperature_response(
     wavelengths=wavelengths,
     temperatures=temps,
-    time=obs_time,
+    ssw_table_path='response_matrix.npz',
 )
 
 # 4. DEM 계산
