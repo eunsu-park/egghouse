@@ -301,6 +301,58 @@ results = db.select('observations', where={'wavelength': 171})
 df = db.to_dataframe(results, columns=['id', 'date', 'wavelength'])
 ```
 
+Declarative schema + bulk records (v0.7+): build tables from a config
+dict and idempotently upsert, no DB-specific code required.
+
+```python
+from egghouse.database import initialize_database, upsert_dataframe
+
+schema = {
+    "sdo": {
+        "telescope": "VARCHAR(10) NOT NULL",
+        "channel":   "VARCHAR(20) NOT NULL",
+        "datetime":  "TIMESTAMP NOT NULL",
+        "file_path": "VARCHAR(512) NOT NULL",
+        "_primary_key": ["telescope", "channel", "datetime"],
+        "_unique":      ["file_path"],
+        "_indexes":     [["datetime"]],
+    },
+}
+initialize_database(db_config, schema)            # CREATE DATABASE + tables
+upsert_dataframe(df, "sdo", db_config,
+                 conflict_columns=["telescope", "channel", "datetime"])
+```
+
+### `egghouse.swdb` — solar / space-weather DB (v0.8+)
+
+Domain layer on top of `egghouse.database`. Reference schemas + FITS
+handlers + a generalized directory-registration flow. AIA ships here;
+other instruments subclass `FitsHandler` in their own projects.
+
+```python
+from egghouse.database import initialize_database
+from egghouse.swdb import (
+    SDO_SCHEMA, AiaFitsHandler, register_fits_dir,
+)
+
+# Build a setup-sw-db-compatible solar_images.sdo table from the
+# reference schema (byte-identical DDL):
+initialize_database(db_config, {"sdo": SDO_SCHEMA})
+
+# Scan a directory of AIA FITS, validate, idempotently upsert, and
+# (optionally) archive into {root}/aia/YYYY/YYYYMMDD/:
+report = register_fits_dir(
+    "/data/incoming",
+    handler=AiaFitsHandler(),          # T_OBS (UTC); quality stored, not gated
+    table="sdo",
+    db_config=db_config,
+    conflict_columns=["telescope", "channel", "datetime"],
+    move_root="/archive",              # omit to register files in place
+    parallel=4,
+)
+print(report.summary())                # scanned/valid/inserted/errors reconcile
+```
+
 ### `egghouse.transfer`
 File transfer utilities with HTTP, FTP, and SFTP support.
 

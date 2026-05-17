@@ -4,6 +4,56 @@ All notable changes to **egghouse** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] — 2026-05-17
+
+### Added — `egghouse.swdb` (solar / space-weather DB domain layer)
+
+New subpackage on top of the generic `egghouse.database` (0.7.0)
+infrastructure. Domain layer; AIA-only (what undine needs). Other
+instruments subclass the ABC in their own projects.
+
+- `ValidationResult` — type-safe ok/fail result for FITS validation
+  (ported from setup-sw-db `core/result.py`).
+- `SDO_SCHEMA` / `LASCO_SCHEMA` / `SECCHI_SCHEMA` — reference
+  declarative table specs. **Verified byte-identical** to the
+  setup-sw-db `schema_config` blocks, so a project can build a
+  setup-sw-db-compatible `solar_images` DB straight from these
+  constants via `egghouse.database.create_tables_from_schema`.
+- `FitsHandler` ABC + `AiaFitsHandler` — turn a FITS file into a
+  validated `ValidationResult`, a flat DB row (`to_db_record`), and an
+  archive path (`target_dir`). astropy is imported lazily.
+    - **Timestamp policy divergence (documented):** `AiaFitsHandler`
+      keys on `T_OBS` (UTC), consistent with undine's acquisition
+      grouping, whereas setup-sw-db's SDO validator uses `T_REC` (the
+      JSOC slotted record time). The `sdo` *table shape* stays
+      setup-sw-db compatible; only the column's semantic source differs
+      per project. For AIA EUV `T_OBS` needs no TAI conversion.
+- `register_fits_dir(scan_dir, *, handler, table, db_config,
+  conflict_columns, move_root=None, error_dirs=None, …)` +
+  `RegisterReport` — generalized scan → validate → idempotent upsert →
+  optional archive-move flow (from setup-sw-db
+  `scripts/register_sdo.py`). Header-only validation is I/O-bound, so
+  parallelism uses a thread pool (no pickling constraints; handler may
+  hold state). DB write delegated to
+  `egghouse.database.upsert_dataframe` (idempotent). `RegisterReport`
+  counts reconcile: scanned == valid + sum(errors) + skipped_existing.
+- `scan_fits` — recursive FITS listing with substring exclusion
+  (default excludes AIA `spike` artifacts).
+- `swdb` added to `egghouse.__all__`; `find_packages` picks up the
+  subpackage automatically.
+
+### Notes
+
+- Purely additive; no existing behavior changed. setup-sw-db (git-pins
+  egghouse, imports only `PostgresManager`) is unaffected — verified by
+  byte-identical DDL on its real lasco/sdo/secchi configs.
+- Tests: 21 new cases (schemas DDL round-trip, AiaFitsHandler against
+  synthetic AIA FITS incl. error categories, register_fits_dir with a
+  stubbed upsert covering valid/invalid/move/parallel/empty). Full
+  suite: 235 passed.
+
+---
+
 ## [0.7.0] — 2026-05-17
 
 ### Added — declarative schema + bulk record helpers in `egghouse.database`
