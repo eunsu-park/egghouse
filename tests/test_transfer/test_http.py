@@ -55,10 +55,14 @@ def test_is_transient_http_408_timeout_response():
 # --- get_file_list ---
 
 
-def _make_response(status_code: int, body: str = ""):
+def _make_response(status_code: int, body: str = "", content=None):
     resp = MagicMock()
     resp.status_code = status_code
     resp.text = body
+    resp.headers = {}
+    if content is not None:
+        resp.headers["Content-Length"] = str(len(content))
+        resp.iter_content = lambda chunk_size=1: iter([content])
     if 400 <= status_code < 600:
         err = requests.HTTPError(f"{status_code} error")
         err.response = resp
@@ -199,9 +203,7 @@ def test_download_single_file_recovers_on_second_attempt(monkeypatch, tmp_path):
         calls["n"] += 1
         if calls["n"] == 1:
             raise requests.Timeout("read timeout")
-        resp = _make_response(200, "body")
-        resp.content = b"data"
-        return resp
+        return _make_response(200, content=b"data")
 
     monkeypatch.setattr(transfer_http.requests, "get", fake_get)
     monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
@@ -220,14 +222,79 @@ def test_download_single_file_skips_when_exists_and_not_overwrite(tmp_path):
     assert dest.read_bytes() == b"old"
 
 
+# --- Content-Length verification ---
+
+
+def test_download_single_file_incomplete_then_recovers(monkeypatch, tmp_path):
+    state = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        state["n"] += 1
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status = MagicMock()
+        if state["n"] == 1:
+            resp.headers = {"Content-Length": "10"}  # claims 10
+            resp.iter_content = lambda chunk_size=1: iter([b"abcd"])  # got 4
+        else:
+            resp.headers = {"Content-Length": "4"}
+            resp.iter_content = lambda chunk_size=1: iter([b"abcd"])
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+    dest = tmp_path / "f.fts"
+    ok = download_single_file("https://example/f.fts", str(dest), max_retries=3)
+    assert ok is True
+    assert dest.read_bytes() == b"abcd"
+    assert state["n"] == 2  # first attempt was incomplete and retried
+    assert not (tmp_path / "f.fts.part").exists()
+
+
+def test_download_single_file_incomplete_exhausts_returns_false(
+    monkeypatch, tmp_path
+):
+    def fake_get(url, **kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status = MagicMock()
+        resp.headers = {"Content-Length": "10"}
+        resp.iter_content = lambda chunk_size=1: iter([b"abcd"])  # always short
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+    dest = tmp_path / "f.fts"
+    ok = download_single_file("https://example/f.fts", str(dest), max_retries=2)
+    assert ok is False
+    assert not dest.exists()
+    assert not (tmp_path / "f.fts.part").exists()
+
+
+def test_download_single_file_no_content_length_header_succeeds(
+    monkeypatch, tmp_path
+):
+    def fake_get(url, **kwargs):
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.raise_for_status = MagicMock()
+        resp.headers = {}  # no Content-Length: cannot verify, accept as-is
+        resp.iter_content = lambda chunk_size=1: iter([b"xyz"])
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    dest = tmp_path / "f.fts"
+    ok = download_single_file("https://example/f.fts", str(dest), max_retries=0)
+    assert ok is True
+    assert dest.read_bytes() == b"xyz"
+
+
 # --- atomic-write semantics (.part + os.replace) ---
 
 
 def test_download_single_file_success_leaves_no_part_file(monkeypatch, tmp_path):
     def fake_get(url, **kwargs):
-        resp = _make_response(200, "body")
-        resp.content = b"payload"
-        return resp
+        return _make_response(200, content=b"payload")
 
     monkeypatch.setattr(transfer_http.requests, "get", fake_get)
     dest = tmp_path / "ok.fts"
@@ -268,21 +335,18 @@ def test_download_single_file_mid_write_crash_leaves_no_destination(
 ):
     """A crash between open() and os.replace() must NOT leave a final file.
 
-    Simulates SIGKILL / power loss after the response body is in memory by
-    raising during f.write(). The destination must not exist; any residual
-    .part is acceptable (will be truncated on next attempt) but the contract
-    is "no truncated file at the final path."
+    Simulates a disk failure mid-stream by raising from iter_content().
+    The destination must not exist; any residual .part is acceptable (it
+    will be truncated on the next attempt) but the contract is "no
+    truncated file at the final path."
     """
-    class _ExplodingBytes:
-        def __init__(self, _good):
-            pass
-
     def fake_get(url, **kwargs):
-        resp = _make_response(200, "body")
-        # raise on .write(response.content): make content access blow up.
-        type(resp).content = property(
-            lambda self: (_ for _ in ()).throw(OSError("disk full"))
-        )
+        resp = _make_response(200)
+
+        def _boom(chunk_size=1):
+            raise OSError("disk full")
+
+        resp.iter_content = _boom
         return resp
 
     monkeypatch.setattr(transfer_http.requests, "get", fake_get)
@@ -301,9 +365,7 @@ def test_download_single_file_overwrite_replaces_existing_atomically(
     dest.write_bytes(b"old")
 
     def fake_get(url, **kwargs):
-        resp = _make_response(200, "body")
-        resp.content = b"new"
-        return resp
+        return _make_response(200, content=b"new")
 
     monkeypatch.setattr(transfer_http.requests, "get", fake_get)
     ok = download_single_file(
