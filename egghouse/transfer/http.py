@@ -15,6 +15,10 @@ Error handling:
   the underlying `requests.RequestException` so the caller can distinguish
   "couldn't reach the server" from "no data here". `download_single_file`
   keeps returning False after exhausting retries.
+- `download_single_file` streams the body to a temporary `.part` file and
+  verifies the written byte count against the ``Content-Length`` header
+  when the server provides one; a short/truncated transfer that raised no
+  exception is treated as a transient error and retried.
 """
 
 import os
@@ -25,7 +29,6 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 import urllib3
-from bs4 import BeautifulSoup
 from urllib3.exceptions import InsecureRequestWarning
 
 
@@ -76,6 +79,14 @@ def download_single_file(
     """
     Download a single file with retry logic.
 
+    The body is streamed to a temporary ``<destination>.part`` file in
+    1 MiB chunks (constant memory regardless of file size). When the
+    server sends a ``Content-Length`` header, the written byte count is
+    verified against it; a mismatch (a truncated transfer that raised no
+    exception) is treated as a transient error and retried. On success
+    the temp file is atomically ``os.replace``d onto the destination, so
+    a crash mid-transfer never leaves a truncated file at the final path.
+
     Retries on transient errors (see module docstring) with exponential
     backoff. Terminal errors (e.g., 404 Not Found) return False immediately
     without retrying. After exhausting retries on transient errors, returns
@@ -105,10 +116,10 @@ def download_single_file(
 
     # Atomic-write: stream to <destination>.part, then os.replace to final.
     # Guarantees the final path is created only when the full body has been
-    # written, so a SIGKILL or power loss between open() and write() flush
-    # cannot leave a truncated file at the destination. POSIX os.replace is
-    # atomic within the same filesystem; cross-fs callers should ensure the
-    # tmp and final paths share a mount.
+    # written, so a SIGKILL or power loss mid-stream cannot leave a truncated
+    # file at the destination. POSIX os.replace is atomic within the same
+    # filesystem; cross-fs callers should ensure the tmp and final paths
+    # share a mount.
     tmp_path = dest_path.with_name(dest_path.name + ".part")
 
     def _cleanup_tmp() -> None:
@@ -121,27 +132,50 @@ def download_single_file(
 
     last_exc: Optional[BaseException] = None
     for attempt in range(max_retries + 1):
+        incomplete = False
         try:
-            response = requests.get(source_url, timeout=timeout, verify=verify_ssl)
+            response = requests.get(
+                source_url, timeout=timeout, verify=verify_ssl, stream=True
+            )
             response.raise_for_status()
 
+            expected = response.headers.get("Content-Length")
+            expected_size = int(expected) if expected else None
+
+            written = 0
             with open(tmp_path, "wb") as f:
-                f.write(response.content)
-            os.replace(tmp_path, dest_path)
-            return True
+                for chunk in response.iter_content(chunk_size=1048576):
+                    if chunk:
+                        f.write(chunk)
+                        written += len(chunk)
+
+            if expected_size is not None and written != expected_size:
+                # Truncated transfer with no exception raised: retry it.
+                _cleanup_tmp()
+                incomplete = True
+            else:
+                os.replace(tmp_path, dest_path)
+                return True
 
         except requests.RequestException as e:
             last_exc = e
+            _cleanup_tmp()
             if not _is_transient_error(e):
                 print(
                     f"Failed to download {source_url}: {e} "
                     "(terminal error, no retry)"
                 )
-                _cleanup_tmp()
                 return False
 
         if attempt < max_retries:
             _backoff_sleep(attempt)
+        elif incomplete:
+            print(
+                f"Failed to download {source_url} after {max_retries + 1} "
+                f"attempts (incomplete: {written}/{expected_size} bytes)"
+            )
+            _cleanup_tmp()
+            return False
         else:
             print(
                 f"Failed to download {source_url} after {max_retries + 1} "
@@ -190,6 +224,11 @@ def get_file_list(
             are exhausted. The caller can distinguish this from the
             "no data" empty-list return.
     """
+    # Lazy import: only directory listing needs an HTML parser, so a
+    # caller that only downloads files (download_single_file /
+    # download_parallel) does not require beautifulsoup4 to be installed.
+    from bs4 import BeautifulSoup
+
     if not verify_ssl:
         urllib3.disable_warnings(InsecureRequestWarning)
 
