@@ -8,7 +8,9 @@ import requests
 from egghouse.transfer import http as transfer_http
 from egghouse.transfer.http import (
     _is_transient_error,
+    download_json,
     download_single_file,
+    download_text,
     get_file_list,
 )
 
@@ -374,3 +376,99 @@ def test_download_single_file_overwrite_replaces_existing_atomically(
     assert ok is True
     assert dest.read_bytes() == b"new"
     assert not (tmp_path / "existing.fts.part").exists()
+
+
+# --- download_text ---
+
+
+def test_download_text_404_returns_none_no_retry(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        calls["n"] += 1
+        return _make_response(404)
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    out = download_text("https://example/nope", max_retries=3)
+    assert out is None
+    assert calls["n"] == 1  # terminal: no retry
+
+
+def test_download_text_connection_error_retries_then_returns_none(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        calls["n"] += 1
+        raise requests.ConnectionError("DNS fail")
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+    out = download_text("https://example/x", max_retries=2)
+    assert out is None
+    assert calls["n"] == 3  # initial + 2 retries
+
+
+def test_download_text_recovers_on_second_attempt(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise requests.Timeout("read timeout")
+        return _make_response(200, "hello world")
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+    out = download_text("https://example/x", max_retries=3)
+    assert out == "hello world"
+    assert calls["n"] == 2
+
+
+# --- download_json ---
+
+
+def test_download_json_404_returns_none_no_retry(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        calls["n"] += 1
+        return _make_response(404)
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    out = download_json("https://example/nope", max_retries=3)
+    assert out is None
+    assert calls["n"] == 1
+
+
+def test_download_json_recovers_on_second_attempt(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise requests.ConnectionError("transient")
+        resp = _make_response(200)
+        resp.json = MagicMock(return_value={"k": 1, "v": [2, 3]})
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+    out = download_json("https://example/x", max_retries=3)
+    assert out == {"k": 1, "v": [2, 3]}
+    assert calls["n"] == 2
+
+
+def test_download_json_decode_error_returns_none_no_retry(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_get(url, **kwargs):
+        calls["n"] += 1
+        resp = _make_response(200, "not json")
+        resp.json = MagicMock(side_effect=ValueError("bad json"))
+        return resp
+
+    monkeypatch.setattr(transfer_http.requests, "get", fake_get)
+    monkeypatch.setattr(transfer_http.time, "sleep", lambda s: None)
+    out = download_json("https://example/x", max_retries=3)
+    assert out is None
+    assert calls["n"] == 1  # decode error: terminal, no retry

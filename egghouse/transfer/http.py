@@ -350,3 +350,107 @@ def download_parallel(
                     failed += 1
 
     return {"downloaded": successful, "failed": failed}
+
+
+def download_text(
+    url: str,
+    *,
+    timeout: int = 30,
+    max_retries: int = 3,
+    verify_ssl: bool = True,
+) -> Optional[str]:
+    """Fetch a URL's response body as text with retry logic.
+
+    Same transient/terminal classification and exponential backoff as
+    ``download_single_file`` (see module docstring). Terminal errors
+    (e.g., 404) return None immediately; after exhausting retries on
+    transient errors, returns None.
+
+    Args:
+        url: URL to fetch.
+        timeout: Request timeout in seconds.
+        max_retries: Maximum retry attempts on transient errors.
+            Defaults to 3 (up to 4 attempts total).
+        verify_ssl: If True, verify SSL certificates. Defaults to True.
+
+    Returns:
+        Response text on success, None otherwise.
+    """
+    if not verify_ssl:
+        urllib3.disable_warnings(InsecureRequestWarning)
+
+    last_exc: Optional[BaseException] = None
+    for attempt in range(max_retries + 1):
+        try:
+            response = requests.get(url, timeout=timeout, verify=verify_ssl)
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            last_exc = e
+            if not _is_transient_error(e):
+                print(f"Failed to fetch {url}: {e} (terminal error, no retry)")
+                return None
+
+        if attempt < max_retries:
+            _backoff_sleep(attempt)
+        else:
+            print(
+                f"Failed to fetch {url} after {max_retries + 1} attempts "
+                f"(transient error): {last_exc}"
+            )
+            return None
+
+    return None
+
+
+def download_json(
+    url: str,
+    *,
+    timeout: int = 30,
+    max_retries: int = 3,
+    verify_ssl: bool = True,
+):
+    """Fetch a URL's response body and parse it as JSON.
+
+    Same retry policy as ``download_text``. A JSON decode failure is
+    treated as terminal (the body, not transport, is the problem) and
+    returns None without retrying.
+
+    Args:
+        url: URL to fetch.
+        timeout: Request timeout in seconds.
+        max_retries: Maximum retry attempts on transient errors.
+        verify_ssl: If True, verify SSL certificates.
+
+    Returns:
+        Parsed JSON value on success, None otherwise.
+    """
+    if not verify_ssl:
+        urllib3.disable_warnings(InsecureRequestWarning)
+
+    last_exc: Optional[BaseException] = None
+    for attempt in range(max_retries + 1):
+        try:
+            response = requests.get(url, timeout=timeout, verify=verify_ssl)
+            response.raise_for_status()
+            try:
+                return response.json()
+            except ValueError as e:
+                print(f"Failed to parse JSON from {url}: {e} (no retry)")
+                return None
+        except requests.RequestException as e:
+            last_exc = e
+            if not _is_transient_error(e):
+                print(f"Failed to fetch {url}: {e} (terminal error, no retry)")
+                return None
+
+        if attempt < max_retries:
+            _backoff_sleep(attempt)
+        else:
+            print(
+                f"Failed to fetch {url} after {max_retries + 1} attempts "
+                f"(transient error): {last_exc}"
+            )
+            return None
+
+    return None

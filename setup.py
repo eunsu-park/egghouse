@@ -5,7 +5,7 @@ with open("README.MD", "r", encoding="utf-8") as f:
 
 setup(
     name="egghouse",
-    version="0.8.1",
+    version="0.8.2",
     author="Eunsu Park",
     description="Utility library for solar physics research",
     long_description=long_description,
