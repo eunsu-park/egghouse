@@ -18,12 +18,16 @@ try:
     from .http import download_single_file
     from .http import get_file_list
     from .http import download_parallel
+    from .http import download_text
+    from .http import download_json
     HAS_HTTP = True
 except ImportError:
     HAS_HTTP = False
     download_single_file = None
     get_file_list = None
     download_parallel = None
+    download_text = None
+    download_json = None
 
 # FTP (no external dependencies)
 from .ftp import (
@@ -51,6 +55,8 @@ __all__ = [
     'download_single_file',
     'get_file_list',
     'download_parallel',
+    'download_text',
+    'download_json',
     'HAS_HTTP',
     # FTP
     'ftp_connection',
