@@ -74,6 +74,28 @@ from .stats import (
     adaptive_threshold,
 )
 
+from .noise import (
+    mad,
+    robust_sigma,
+)
+
+from .metrics import (
+    psnr,
+    ssim,
+    ms_ssim,
+    weak_signal_contrast,
+)
+
+from .transforms import (
+    compose,
+    to_float32,
+    nan_to_value,
+    percentile_clip,
+    normalize_minmax,
+    normalize_log1p,
+    circular_mask,
+)
+
 __all__ = [
     # Core transformations
     'resize_image',
@@ -101,6 +123,22 @@ __all__ = [
     'percentile_scale',
     'find_disk_center',
     'adaptive_threshold',
+    # Noise-scale estimation
+    'mad',
+    'robust_sigma',
+    # Image-quality metrics
+    'psnr',
+    'ssim',
+    'ms_ssim',
+    'weak_signal_contrast',
+    # Composable transforms
+    'compose',
+    'to_float32',
+    'nan_to_value',
+    'percentile_clip',
+    'normalize_minmax',
+    'normalize_log1p',
+    'circular_mask',
     # Convenience aliases
     'resize',
     'rotate',

@@ -5,7 +5,7 @@ with open("README.MD", "r", encoding="utf-8") as f:
 
 setup(
     name="egghouse",
-    version="0.8.2",
+    version="0.9.0",
     author="Eunsu Park",
     description="Utility library for solar physics research",
     long_description=long_description,
@@ -39,6 +39,12 @@ setup(
         "fits": [
             "astropy>=5.0",
         ],
+        # Classical denoisers (egghouse.denoise)
+        "denoise": [
+            "scikit-image>=0.20",
+            "PyWavelets>=1.4",
+            "bm3d>=4.0",
+        ],
         # SDO processing (full functionality)
         "sdo": [
             "astropy>=5.0",
@@ -71,6 +77,9 @@ setup(
             "astropy>=5.0",
             "sunpy>=4.0",
             "aiapy>=0.7",
+            "scikit-image>=0.20",
+            "PyWavelets>=1.4",
+            "bm3d>=4.0",
         ],
     },
 
