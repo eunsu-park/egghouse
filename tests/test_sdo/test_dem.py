@@ -91,18 +91,56 @@ class TestGetTemperatureResponse:
             with pytest.warns(UserWarning):
                 get_temperature_response(wavelengths=[999], temperatures=temps)
 
-    def test_aiapy_path_raises_notimplemented(self):
-        """When aiapy is installed, the disabled aiapy path must raise a clear
-        NotImplementedError rather than silently failing on the removed
+    def test_aiapy_path_raises_notimplemented(self, monkeypatch):
+        """With aiapy installed but fiasco unavailable and no SSW table, the
+        disabled aiapy-only path must raise a clear NotImplementedError
+        rather than silently failing on the removed
         ``Channel.temperature_response`` upstream API."""
         from egghouse.sdo.dem import response as _resp
         from egghouse.sdo.dem import get_default_temperatures, get_temperature_response
 
         if not _resp.HAS_AIAPY:
             pytest.skip("aiapy not installed; aiapy path is not exercised here")
+        # Force the aiapy-only path (skip the fiasco source).
+        monkeypatch.setattr(_resp, "HAS_FIASCO", False)
         temps = get_default_temperatures(n_bins=10)
         with pytest.raises(NotImplementedError, match="ssw_table_path"):
             get_temperature_response(temperatures=temps)  # no ssw_table_path -> aiapy path
+
+
+class TestFoldLinesIntoChannel:
+    """Unit-chain test for the fiasco response folding (no CHIANTI/fiasco needed).
+
+    Validates ``K(T) = (Omega/4pi) * sum_lines g_photon * R(lambda)`` — the
+    arithmetic core of ``_get_fiasco_response`` — in isolation.
+    """
+
+    def test_single_line_unit_chain(self):
+        from egghouse.sdo.dem.response import _fold_lines_into_channel
+
+        # One line at 171.1 A; flat channel response 2.0 cm2 DN/ph; Omega=4pi
+        # so the prefactor is exactly 1 -> K(T) = g_photon * R.
+        g_photon = np.array([[3.0], [5.0]])  # (n_T=2, n_lines=1), cm^3 ph/s
+        out = _fold_lines_into_channel(
+            g_photon,
+            np.array([171.1]),
+            np.array([170.0, 172.0]),
+            np.array([2.0, 2.0]),
+            4.0 * np.pi,
+        )
+        np.testing.assert_allclose(out, [6.0, 10.0])
+
+    def test_line_outside_grid_contributes_zero(self):
+        from egghouse.sdo.dem.response import _fold_lines_into_channel
+
+        out = _fold_lines_into_channel(
+            np.array([[3.0]]),
+            np.array([500.0]),  # outside the 170-172 grid -> R interpolates to 0
+            np.array([170.0, 172.0]),
+            np.array([2.0, 2.0]),
+            4.0 * np.pi,
+        )
+        np.testing.assert_allclose(out, [0.0])
 
 
 def _make_synthetic_ssw_npz(path, *, n_t=11, response_key="response_v10_en"):
