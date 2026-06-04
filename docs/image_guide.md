@@ -13,7 +13,10 @@ egghouse/image/
 ├── masking.py    # 마스킹 (circle_mask, annulus_mask)
 ├── spatial.py    # 공간 변환 (pad, crop_or_pad, flip, roll)
 ├── filters.py    # 필터링 (gaussian, median, laplacian, sobel, unsharp)
-└── stats.py      # 통계/분석 (normalize, histogram_eq, percentile_scale, find_center)
+├── stats.py      # 통계/분석 (normalize, histogram_eq, percentile_scale, find_center)
+├── metrics.py    # 영상 품질 지표 (psnr, ssim, ms_ssim, weak_signal_contrast) [v0.9+]
+├── transforms.py # composable numpy 변환 (compose, percentile_clip, ...) [v0.9+]
+└── noise.py      # 강건 노이즈 스케일 (mad, robust_sigma) [v0.9+]
 ```
 
 ---
@@ -60,6 +63,49 @@ egghouse/image/
 | `percentile_scale` | percentile 기반 스케일링 |
 | `find_disk_center` | 디스크 중심 찾기 |
 | `adaptive_threshold` | 적응형 이진화 |
+
+### Metrics (영상 품질 지표, v0.9+)
+| 함수 | 설명 |
+|------|------|
+| `psnr` | Peak SNR (dB); 동일 영상이면 `+inf` |
+| `ssim` | 단일 스케일 SSIM (Wang 2004) |
+| `ms_ssim` | 다중 스케일 SSIM (Wang 2003, 5-scale) |
+| `weak_signal_contrast` | Sobel gradient 상관 (약한 엣지 보존, 플레이스홀더) |
+
+```python
+from egghouse.image import psnr, ssim, ms_ssim
+score = psnr(denoised, reference, data_range=4.0)
+```
+
+### Transforms (composable 변환, v0.9+)
+`compose([...])`로 체인. 각 함수는 numpy 배열 → numpy 배열.
+
+| 함수 | 설명 |
+|------|------|
+| `compose` | 변환들을 좌→우로 연결 |
+| `to_float32` | native float32 캐스트 (값 변경 없음) |
+| `nan_to_value` | NaN/Inf를 지정값으로 치환 |
+| `percentile_clip` | 프레임별 percentile 범위로 클립 |
+| `normalize_minmax` | 프레임별 [0,1] 스케일 |
+| `normalize_log1p` | `log1p(scale*(x-min))` 동적범위 압축 |
+| `circular_mask` | 중심 원 내부/외부 채우기 |
+
+```python
+from egghouse.image import transforms as T
+pipe = T.compose([T.to_float32, T.percentile_clip(0.5, 99.5), T.normalize_minmax()])
+out = pipe(frame)
+```
+
+### Noise (강건 노이즈 스케일, v0.9+)
+| 함수 | 설명 |
+|------|------|
+| `mad` | 중앙값 기준 median absolute deviation |
+| `robust_sigma` | 강건 σ 추정 `1.4826 * MAD` (outlier에 강건) |
+
+```python
+from egghouse.image import robust_sigma
+sigma = robust_sigma(frame)   # hot-pixel/transient에 끌리지 않음
+```
 
 ---
 

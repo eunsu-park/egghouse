@@ -4,6 +4,38 @@ All notable changes to **egghouse** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] — 2026-06-04
+
+### Added — `egghouse.denoise` (classical image denoisers)
+
+New subpackage of channel-agnostic classical denoisers, migrated from the
+`lolipop` project so both `lolipop` and future projects import them instead
+of duplicating. Each module exposes `denoise(image, ...)` + a parametric
+`*Denoiser` class.
+
+- `anscombe` — Anscombe variance-stabilising transform + unbiased inverse
+  (Makitalo & Foi 2011), wrapping any inner Gaussian denoiser; guards
+  against zero-centred input.
+- `bm3d` — Block-Matching 3D collaborative filtering.
+- `nlm` — Non-local means (scikit-image).
+- `tv` — Total-variation (Chambolle) denoising.
+- `wiener` — Wiener filter (scipy.signal.wiener).
+- `wavelet` — Wavelet BayesShrink denoising (scikit-image).
+- New `extras_require['denoise']` = scikit-image, PyWavelets, bm3d.
+
+### Added — `egghouse.image` metrics / transforms / noise
+
+- `egghouse.image.metrics` — `psnr`, `ssim`, `ms_ssim` (Wang 2003/2004),
+  `weak_signal_contrast`. Pure numpy/scipy, no torch.
+- `egghouse.image.transforms` — composable numpy transforms (`compose`,
+  `to_float32`, `nan_to_value`, `percentile_clip`, `normalize_minmax`,
+  `normalize_log1p`, `circular_mask`).
+- `egghouse.image.noise` — `mad` and `robust_sigma` (1.4826·MAD) for
+  outlier-robust per-frame noise-scale estimation.
+
+All exported from `egghouse.image`. 136 tests added under
+`tests/test_denoise` and `tests/test_image`.
+
 ## [0.8.0] — 2026-05-17
 
 ### Added — `egghouse.swdb` (solar / space-weather DB domain layer)

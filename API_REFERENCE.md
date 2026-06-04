@@ -4,7 +4,8 @@ Complete list of all public functions, classes, and constants in egghouse.
 
 **Detailed Usage Guides:** See [docs/](docs/) folder for module-specific guides.
 
-- [image_guide.md](docs/image_guide.md) - Image processing utilities
+- [image_guide.md](docs/image_guide.md) - Image processing utilities (incl. metrics, transforms, noise)
+- [denoise_guide.md](docs/denoise_guide.md) - Classical image denoisers
 - [sdo_guide.md](docs/sdo_guide.md) - SDO/AIA/HMI data processing
 - [config_guide.md](docs/config_guide.md) - Configuration management
 - [database_guide.md](docs/database_guide.md) - PostgreSQL utilities
@@ -25,6 +26,9 @@ Generic image processing utilities. Organized into submodules:
 - `spatial` - Padding, cropping, flipping
 - `filters` - Gaussian, median, edge detection
 - `stats` - Normalization, histogram, statistics
+- `metrics` - PSNR / SSIM / MS-SSIM / weak-signal
+- `transforms` - composable numpy transforms
+- `noise` - robust noise-scale estimation (MAD)
 
 ### Core
 
@@ -77,6 +81,36 @@ Generic image processing utilities. Organized into submodules:
 | `find_disk_center` | `(image, threshold=None, method='centroid') -> Tuple[float, float]` | Find bright disk center (cy, cx) |
 | `adaptive_threshold` | `(image, block_size=35, offset=0.0) -> ndarray` | Adaptive binarization for uneven illumination |
 
+### Metrics (v0.9+)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `psnr` | `(image, reference, *, data_range=None) -> float` | Peak signal-to-noise ratio (dB); `+inf` on exact match |
+| `ssim` | `(image, reference, *, data_range=None, win_size=11) -> float` | Single-scale structural similarity (Wang 2004) |
+| `ms_ssim` | `(image, reference, *, data_range=None, weights=None, win_size=11) -> float` | Multi-scale SSIM (Wang 2003, 5-scale) |
+| `weak_signal_contrast` | `(image, reference, *, mask=None) -> float` | Sobel gradient-magnitude correlation (weak-edge preservation, placeholder) |
+
+### Transforms (v0.9+)
+
+Composable numpy transform factories; combine with `compose([...])`.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `compose` | `(transforms) -> Transform` | Chain transforms left-to-right |
+| `to_float32` | `(image) -> ndarray` | Cast to native float32, no rescale |
+| `nan_to_value` | `(value=0.0) -> Transform` | Replace NaN/Inf with `value` |
+| `percentile_clip` | `(low=0.5, high=99.5) -> Transform` | Clip to per-frame percentile range |
+| `normalize_minmax` | `(eps=1e-8) -> Transform` | Scale to [0, 1] per frame |
+| `normalize_log1p` | `(scale=1.0) -> Transform` | `log1p(scale*(x-min))` dynamic-range compression |
+| `circular_mask` | `(radius_frac, fill=0.0, inverse=False) -> Transform` | Fill inside/outside a centered circle |
+
+### Noise (v0.9+)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `mad` | `(x, *, center=None) -> float` | Median absolute deviation about the median |
+| `robust_sigma` | `(x, *, center=None) -> float` | Robust noise sigma `1.4826 * MAD(x)` |
+
 ### Aliases
 
 | Alias | Function |
@@ -85,6 +119,29 @@ Generic image processing utilities. Organized into submodules:
 | `rotate` | `rotate_image` |
 | `bytescale` | `bytescale_image` |
 | `pad` | `pad_image` |
+
+---
+
+## egghouse.denoise (v0.9+)
+
+Classical, channel-agnostic image denoisers. Each module exposes a
+`denoise(image, ...)` callable plus a parametric `*Denoiser` class (both
+satisfy `Callable[[np.ndarray], np.ndarray]`). Requires
+`pip install egghouse[denoise]` (scikit-image, PyWavelets, bm3d).
+
+| Module | Function | Class | Notes |
+|--------|----------|-------|-------|
+| `wavelet` | `denoise(image, sigma=None, ...)` | `WaveletDenoiser` | BayesShrink (scikit-image); sigma auto-estimated |
+| `bm3d` | `denoise(image, sigma=None)` | `BM3DDenoiser` | Block-Matching 3D |
+| `nlm` | `denoise(image, sigma=None, ...)` | `NLMDenoiser` | Non-local means (scikit-image) |
+| `tv` | `denoise(image, weight=0.1)` | `TVDenoiser` | Total variation (Chambolle) |
+| `wiener` | `denoise(image, mysize=...)` | `WienerDenoiser` | Wiener filter (scipy) |
+| `anscombe` | `forward(x)` / `inverse(z)` / `denoise(image, inner, ...)` | `AnscombeDenoiser` | Poisson variance stabilisation around an inner Gaussian denoiser |
+
+```python
+from egghouse.denoise.wavelet import WaveletDenoiser
+clean = WaveletDenoiser()(noisy)
+```
 
 ---
 
