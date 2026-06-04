@@ -4,6 +4,14 @@ A personal arsenal of reusable code for solar physics research.
 
 이 레포지터리는 개인 프로젝트들에서 공통으로 사용하는 유틸리티를 모아둔 라이브러리입니다.
 
+> **Shared common layer.** `egghouse` is the place where functionality common
+> to the sibling projects — **`lolipop`** (low-light denoising research) and
+> **`solaris-data`** (acquisition + DB) — is implemented once and consumed via
+> `import`. New generic primitives (image metrics, denoisers, transforms,
+> noise-scale estimation, config, DB/transfer helpers) belong here, not
+> duplicated in the consumers. `egghouse.config.BaseConfig` is the standard
+> mechanism those projects use to read paths/params from env/YAML/CLI.
+
 ---
 
 ## Installation
