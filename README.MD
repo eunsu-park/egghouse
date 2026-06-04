@@ -364,13 +364,16 @@ upsert_dataframe(df, "sdo", db_config,
 ### `egghouse.swdb` — solar / space-weather DB (v0.8+)
 
 Domain layer on top of `egghouse.database`. Reference schemas + FITS
-handlers + a generalized directory-registration flow. AIA ships here;
-other instruments subclass `FitsHandler` in their own projects.
+handlers + a generalized directory-registration flow, plus read queries
+(best-match resolution against the `sdo` table). AIA ships here; other
+instruments subclass `FitsHandler` in their own projects.
 
 ```python
+from datetime import datetime
 from egghouse.database import initialize_database
 from egghouse.swdb import (
     SDO_SCHEMA, AiaFitsHandler, register_fits_dir,
+    get_sdo_best_match, get_sdo_best_matches,
 )
 
 # Build a setup-sw-db-compatible solar_images.sdo table from the
@@ -389,6 +392,14 @@ report = register_fits_dir(
     parallel=4,
 )
 print(report.summary())                # scanned/valid/inserted/errors reconcile
+
+# Read side: resolve the stored record closest to a target time
+# (one channel; all sdo columns incl. file_path are returned):
+row = get_sdo_best_match(
+    db_config, telescope="aia", channel="193",
+    target_time=datetime(2014, 1, 1, 12), time_range_minutes=1,
+)
+print(row["file_path"] if row else "no match")
 ```
 
 ### `egghouse.transfer`
