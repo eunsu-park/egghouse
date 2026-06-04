@@ -562,3 +562,47 @@ class TestComputeDemErrors:
         )
 
         assert np.all(dem_err >= 0)
+
+
+class TestDemNNLS:
+    """Tikhonov-NNLS DEM inversion (synthetic; no CHIANTI/fiasco needed)."""
+
+    def _synthetic(self, n_bins=21):
+        from egghouse.sdo.dem import get_default_temperatures
+        T = get_default_temperatures(n_bins=n_bins)
+        logt = np.log10(T)
+        peaks = [6.8, 5.6, 5.9, 6.2, 6.3, 6.4]
+        R = np.stack(
+            [np.exp(-0.5 * ((logt - p) / 0.2) ** 2) * 1e-24 for p in peaks], axis=1
+        )  # (n_T, 6)
+        dt = T * np.log(10) * np.gradient(logt)
+        true = np.exp(-0.5 * ((logt - 6.2) / 0.15) ** 2) * 1e22
+        I = (R * dt[:, None] * true[:, None]).sum(axis=0)  # (6,)
+        return T, R, dt, I
+
+    def test_reconstructs_and_nonnegative(self):
+        from egghouse.sdo.dem import dem_nnls
+        T, R, dt, I = self._synthetic()
+        dem, info = dem_nnls(I, I * 0.05, R, T, reg_order=2, reg_scale=1e-3)
+        assert dem.shape == (T.size,)
+        assert np.all(dem >= 0)
+        Isyn = (R * dt[:, None] * dem[:, None]).sum(axis=0)
+        np.testing.assert_allclose(Isyn / I, 1.0, rtol=0.1)
+        assert "chi2_map" in info
+
+    def test_batch_shape(self):
+        from egghouse.sdo.dem import dem_nnls
+        T, R, dt, I = self._synthetic()
+        batch = np.repeat(I[None, :], 3, axis=0)
+        dem, info = dem_nnls(batch, batch * 0.05, R, T, reg_scale=1e-3)
+        assert dem.shape == (3, T.size)
+        assert info["chi2_map"].shape == (3,)
+
+    def test_calibrate_targets_chi2(self):
+        from egghouse.sdo.dem import calibrate_reg_scale, dem_nnls
+        T, R, dt, I = self._synthetic()
+        batch = np.repeat(I[None, :], 20, axis=0)
+        rs = calibrate_reg_scale(batch, batch * 0.1, R, T, target_chi2=6.0, reg_order=2)
+        assert rs > 0
+        _, info = dem_nnls(batch, batch * 0.1, R, T, reg_scale=rs)
+        assert np.isfinite(info["chi2"])
