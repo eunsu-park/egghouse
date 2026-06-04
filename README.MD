@@ -33,6 +33,7 @@ pip install -e .
 |--------|----------|----------|
 | Core | numpy, scipy, pandas | - |
 | image | numpy, scipy | - |
+| denoise | numpy, scipy | scikit-image, PyWavelets, bm3d |
 | sdo | numpy, scipy | astropy, sunpy |
 | dem | numpy | aiapy, astropy, sunpy |
 | config | pyyaml | - |
@@ -86,7 +87,8 @@ dem, info = dem_sites(intensities, errors, response, temps)
 ## Modules
 
 ### `egghouse.image`
-Generic image processing utilities.
+Generic image processing utilities. Submodules: `core` (resize/rotate/bytescale),
+`masking`, `spatial`, `filters`, `stats`, plus `metrics`, `transforms`, `noise`.
 
 ```python
 from egghouse.image import resize_image, rotate_image, bytescale_image
@@ -106,6 +108,35 @@ corona_mask = annulus_mask(4096, inner_radius=1600, outer_radius=2000)
 # Size normalization
 padded = pad_image(image, (4096, 4096), pad_value=0)
 normalized = crop_or_pad(image, (512, 512))
+
+# Image-quality metrics (no torch dependency)
+from egghouse.image import psnr, ssim, ms_ssim, weak_signal_contrast
+score = psnr(denoised, reference, data_range=4.0)
+
+# Robust noise-scale estimation (MAD-based; outlier-robust)
+from egghouse.image import mad, robust_sigma
+sigma = robust_sigma(frame)               # 1.4826 * MAD
+
+# Composable numpy transforms
+from egghouse.image import transforms as T
+pipe = T.compose([T.to_float32, T.percentile_clip(0.5, 99.5), T.normalize_minmax()])
+out = pipe(frame)
+```
+
+### `egghouse.denoise`
+Classical, channel-agnostic image denoisers. Each module exposes a
+`denoise(image, ...)` callable plus a parametric `*Denoiser` class.
+Install the extra deps with `pip install egghouse[denoise]`.
+
+```python
+from egghouse.denoise.wavelet import WaveletDenoiser   # also: bm3d, nlm, tv, wiener
+from egghouse.denoise import anscombe
+
+denoise = WaveletDenoiser()        # BayesShrink; sigma auto-estimated
+clean = denoise(noisy)
+
+# Anscombe variance-stabilisation wrapping any inner Gaussian denoiser
+clean = anscombe.denoise(noisy_counts, WaveletDenoiser())
 ```
 
 ### `egghouse.sdo`
