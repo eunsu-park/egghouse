@@ -7,16 +7,20 @@ primarily designed for SDO/AIA EUV imaging data.
 Algorithms:
     SITES: Simple Iterative Temperature Emission Solver
            Morgan & Pickering (2019), Solar Physics 294, 135
+    NNLS:  Tikhonov-regularized non-negative least squares
+           Lawson & Hanson (1995); Hannah & Kontar (2012), A&A 539, A146
 
 Modules:
-    response: Temperature response functions (aiapy wrapper)
+    response: Temperature response functions (fiasco/CHIANTI + aiapy)
     sites: SITES DEM inversion algorithm
+    nnls: Tikhonov-regularized NNLS DEM inversion
     utils: Map processing and visualization utilities
 
 References:
     - Morgan & Pickering (2019), Solar Physics 294, 135
       DOI: 10.1007/s11207-019-1525-4
     - Hannah & Kontar (2012), A&A 539, A146
+    - Lawson & Hanson (1995), Solving Least Squares Problems, SIAM
 """
 
 from .response import (
@@ -28,6 +32,10 @@ from .response import (
 from .sites import (
     dem_sites,
     dem_sites_pixel,
+)
+from .nnls import (
+    dem_nnls,
+    calibrate_reg_scale,
 )
 from .utils import (
     dem_map,
@@ -45,6 +53,9 @@ __all__ = [
     # SITES algorithm
     "dem_sites",
     "dem_sites_pixel",
+    # NNLS algorithm
+    "dem_nnls",
+    "calibrate_reg_scale",
     # Utilities
     "dem_map",
     "compute_dem_errors",
