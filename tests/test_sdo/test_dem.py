@@ -606,3 +606,25 @@ class TestDemNNLS:
         assert rs > 0
         _, info = dem_nnls(batch, batch * 0.1, R, T, reg_scale=rs)
         assert np.isfinite(info["chi2"])
+
+
+class TestDemNNLSAdaptiveLambda:
+    """Per-pixel discrepancy-principle reg_scale (target_chi2)."""
+
+    def test_target_chi2_is_approached(self):
+        from egghouse.sdo.dem import dem_nnls, get_default_temperatures
+        T = get_default_temperatures(n_bins=21)
+        logt = np.log10(T)
+        peaks = [6.8, 5.6, 5.9, 6.2, 6.3, 6.4]
+        R = np.stack(
+            [np.exp(-0.5 * ((logt - p) / 0.2) ** 2) * 1e-24 for p in peaks], axis=1
+        )
+        dt = T * np.log(10) * np.gradient(logt)
+        true = np.exp(-0.5 * ((logt - 6.2) / 0.2) ** 2) * 1e22
+        I = (R * dt[:, None] * true[:, None]).sum(axis=0)
+        err = I * 0.1
+        dem, info = dem_nnls(I, err, R, T, reg_order=2, target_chi2=6.0)
+        assert np.all(dem >= 0)
+        # adaptive bisection should bring chi^2 close to (or below) the target
+        assert info["chi2"] <= 6.0 * 2.5
+        assert info["target_chi2"] == 6.0
