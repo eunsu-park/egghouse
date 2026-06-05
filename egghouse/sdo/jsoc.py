@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, TYPE_CHECKING, Union
 
-from .dem.response import AIA_DEM_WAVELENGTHS
+from .dem_response import AIA_DEM_WAVELENGTHS
 
 if TYPE_CHECKING:  # only for type hints, never imported at runtime
     import drms
@@ -167,7 +167,7 @@ def cached_correction_table(path: Union[str, os.PathLike]) -> "Table":
     if path.is_file():
         with open(path, "rb") as f:
             return pickle.load(f)
-    from aiapy.calibrate.util import get_correction_table
+    from aiapy.calibrate.utils import get_correction_table
 
     table = get_correction_table()
     path.parent.mkdir(parents=True, exist_ok=True)

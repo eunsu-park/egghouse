@@ -954,7 +954,8 @@ I(λ) = ∫ K(T,λ) × DEM(T) × dT
 ### 온도 응답 함수
 
 ```python
-from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+from egghouse.dem import get_default_temperatures
+from egghouse.sdo import get_temperature_response
 
 # 기본 온도 그리드 (10^5.5 ~ 10^7.5 K)
 temps = get_default_temperatures(n_bins=100)
@@ -972,7 +973,7 @@ print(f"Response shape: {response.shape}")  # (100, 6)
 
 # 또는 SSW 로더를 직접 호출:
 import numpy as np
-from egghouse.sdo.dem import load_ssw_temperature_response
+from egghouse.dem import load_ssw_temperature_response
 response = load_ssw_temperature_response(
     'response_matrix.npz',
     log_temperatures=np.log10(temps),
@@ -982,7 +983,7 @@ response = load_ssw_temperature_response(
 ### 단일 픽셀 DEM 역산
 
 ```python
-from egghouse.sdo.dem import dem_sites_pixel
+from egghouse.dem import dem_sites_pixel
 import numpy as np
 
 # 6채널 강도 (DN/s)
@@ -1008,7 +1009,7 @@ print(f"DEM peak: {dem.max():.2e} cm^-5 K^-1")
 ### 전체 맵 DEM 처리
 
 ```python
-from egghouse.sdo.dem import dem_map
+from egghouse.dem import dem_map
 
 # image_cube: (height, width, 6) 형태
 # error_cube: 동일 형태
@@ -1029,7 +1030,7 @@ print(f"처리된 픽셀: {info['n_pixels']}")
 ### 파생량 계산
 
 ```python
-from egghouse.sdo.dem import get_emission_measure, get_mean_temperature
+from egghouse.dem import get_emission_measure, get_mean_temperature
 
 # 총 방출 측도: EM = ∫ DEM × dT
 em = get_emission_measure(dem, temps)
@@ -1050,7 +1051,7 @@ t_map = get_mean_temperature(dem_cube, temps)
 ### 오차 추정 (Monte Carlo)
 
 ```python
-from egghouse.sdo.dem.utils import compute_dem_errors
+from egghouse.dem.utils import compute_dem_errors
 
 # Monte Carlo 방법으로 DEM 불확도 추정
 dem_errors = compute_dem_errors(
@@ -1072,13 +1073,8 @@ import numpy as np
 from sunpy.net import Fido, attrs as a
 from sunpy.map import Map
 import astropy.units as u
-from egghouse.sdo.dem import (
-    get_temperature_response,
-    get_default_temperatures,
-    dem_map,
-    get_emission_measure,
-    get_mean_temperature,
-)
+from egghouse.dem import get_default_temperatures, dem_map, get_emission_measure, get_mean_temperature
+from egghouse.sdo import get_temperature_response
 
 # 1. AIA 데이터 다운로드
 obs_time = datetime(2024, 1, 15, 12, 0, 0)
@@ -1130,8 +1126,8 @@ print(f"T_mean range: {t_mean.min()/1e6:.2f} - {t_mean.max()/1e6:.2f} MK")
 ### DEM 상수
 
 ```python
-from egghouse.sdo.dem import HAS_AIAPY
-from egghouse.sdo.dem.response import AIA_DEM_WAVELENGTHS
+from egghouse.sdo import HAS_AIAPY
+from egghouse.sdo import AIA_DEM_WAVELENGTHS
 
 print(f"aiapy 설치: {HAS_AIAPY}")
 print(f"DEM 파장: {AIA_DEM_WAVELENGTHS} Å")  # [94, 131, 171, 193, 211, 335]
