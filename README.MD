@@ -34,8 +34,8 @@ pip install -e .
 | Core | numpy, scipy, pandas | - |
 | image | numpy, scipy | - |
 | denoise | numpy, scipy | scikit-image, PyWavelets, bm3d |
-| sdo | numpy, scipy | astropy, sunpy |
-| dem | numpy | aiapy, astropy, sunpy |
+| sdo | numpy, scipy | astropy, sunpy, aiapy |
+| dem | numpy, scipy | fiasco (CHIANTI temperature response) |
 | config | pyyaml | - |
 | database | psycopg2-binary | pyyaml |
 | transfer | requests, beautifulsoup4 | paramiko (SFTP) |
@@ -73,11 +73,13 @@ from egghouse.sdo import (
 # Compose at the call site; pass cached tables/PSFs for batch jobs.
 
 # 3. DEM (Differential Emission Measure) 분석
-from egghouse.sdo import dem_sites, get_temperature_response, get_default_temperatures
+# DEM solvers are instrument-agnostic and live in `egghouse.dem`; the AIA
+# temperature response (instrument-specific) is in `egghouse.sdo`.
+from egghouse.dem import dem_sites, get_default_temperatures
+from egghouse.sdo import get_temperature_response
 temps = get_default_temperatures(n_bins=50)
-# v0.3+ : aiapy 0.12 removed Channel.temperature_response, so the canonical
-# CHIANTI-based response is loaded from an SSW aia_get_response .npz table
-# (e.g. one shipped with demregpy). See `egghouse.sdo` module docs.
+# AIA response: CHIANTI (fiasco) + aiapy wavelength response, or an SSW
+# aia_get_response .npz table (e.g. one shipped with demregpy).
 response = get_temperature_response(temperatures=temps, ssw_table_path='response_matrix.npz')
 dem, info = dem_sites(intensities, errors, response, temps)
 ```
@@ -164,47 +166,49 @@ from egghouse.sdo import snodgrass_rotation_rate
 rate_eq = snodgrass_rotation_rate(0)    # 14.71 deg/day at equator
 rate_60 = snodgrass_rotation_rate(60)   # ~12.0 deg/day at 60° latitude
 
-# DEM (Differential Emission Measure) analysis using SITES algorithm
-from egghouse.sdo import (
-    dem_sites, dem_map, get_temperature_response, get_default_temperatures,
-    load_ssw_temperature_response,
+# Snodgrass differential rotation is shown above; DEM lives in egghouse.dem.
+```
+
+### `egghouse.dem`
+Instrument-agnostic DEM (Differential Emission Measure) inversion: eight
+solvers + generic temperature-response tools. Solvers take
+`(intensities, errors, response, temperatures)` and are not tied to any
+instrument — the AIA temperature response is built in `egghouse.sdo`
+(`get_temperature_response`) and passed in.
+
+```python
+from egghouse.dem import (
+    dem_sites,        # Morgan & Pickering 2019 (multiplicative MART)
+    dem_nnls,         # Tikhonov-NNLS (Lawson & Hanson; Hannah & Kontar 2012)
+    dem_regularized,  # Hannah & Kontar 2012 (GSVD-Tikhonov)
+    dem_sparse,       # Cheung et al. 2015 (basis pursuit)
+    dem_plowman,      # Plowman et al. 2013 (fast linear)
+    dem_mcmc,         # Kashyap & Drake 1998 (MCMC + uncertainties)
+    dem_spline,       # Weber et al. 2004 (spline forward-fit)
+    dem_gaussian,     # Aschwanden et al. 2013 (single-Gaussian)
+    dem_map,          # chunked full-image driver (method="sites"|"nnls"|...)
+    get_default_temperatures, load_ssw_temperature_response,
     get_emission_measure, get_mean_temperature,
 )
+from egghouse.sdo import get_temperature_response  # AIA K(T) (instrument-specific)
 
-# Setup temperature grid
 temps = get_default_temperatures(logt_min=5.5, logt_max=7.5, n_bins=50)
 
-# Temperature response source (v0.3+): aiapy 0.12 removed
-# `Channel.temperature_response`, so research-quality K(T) is loaded from
-# the canonical SSW `aia_get_response.pro` output (CHIANTI-based; e.g.
-# the .npz shipped with demregpy). Two equivalent entry points:
-#
-#   1) Use the get_temperature_response wrapper with ssw_table_path:
+# AIA temperature response K(T): CHIANTI (fiasco) + aiapy wavelength response,
+# or an SSW aia_get_response .npz table (e.g. the one shipped with demregpy).
 response = get_temperature_response(temperatures=temps, ssw_table_path='response_matrix.npz')
-#
-#   2) Call the SSW loader directly (preferred when you don't need the
-#      aiapy-style wrapper signature):
-import numpy as np
-response = load_ssw_temperature_response(
-    'response_matrix.npz',
-    log_temperatures=np.log10(temps),
-    wavelengths=[94, 131, 171, 193, 211, 335],
-    response_key='response_v10_en',  # V10 effective area + EVE normalization
-)
-# In both cases the shape is (n_temperatures, n_wavelengths), units
-# DN cm^5 s^-1 pixel^-1.
 
-# Single pixel DEM inversion
+# Single-pixel inversion (every solver shares this signature)
 intensities = [10.0, 50.0, 200.0, 150.0, 80.0, 20.0]  # 6 AIA channels (94-335 Å)
 errors = [i * 0.1 for i in intensities]
-dem, info = dem_sites(intensities, errors, response, temps)
+dem, info = dem_nnls(intensities, errors, response, temps)
 
-# Full-map DEM with chunked processing
-dem_cube, map_info = dem_map(image_cube, error_cube, response, temps)
+# Full-map DEM with chunked processing + solver choice
+dem_cube, map_info = dem_map(image_cube, error_cube, response, temps, method="nnls")
 
 # Derived quantities
-em = get_emission_measure(dem, temps)  # Total emission measure
-t_mean = get_mean_temperature(dem, temps)  # DEM-weighted mean temperature
+em = get_emission_measure(dem, temps)        # total emission measure
+t_mean = get_mean_temperature(dem, temps)    # DEM-weighted mean temperature
 ```
 
 ### `egghouse.sdo` — AIA Level 1 → 1.5 prep stages (v0.5+)

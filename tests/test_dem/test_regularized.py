@@ -8,7 +8,7 @@ non-negativity, peak temperature, batch handling, and input validation.
 import numpy as np
 import pytest
 
-from egghouse.sdo.dem.regularized import dem_regularized
+from egghouse.dem.regularized import dem_regularized
 
 
 def _synthetic(n_bins=21):

@@ -1,4 +1,4 @@
-"""Tests for the Metropolis-Hastings MCMC DEM inversion (egghouse.sdo.dem.mcmc).
+"""Tests for the Metropolis-Hastings MCMC DEM inversion (egghouse.dem.mcmc).
 
 Synthetic data only (no CHIANTI/fiasco needed). The chain length is kept small
 so the suite runs in a few seconds; reconstruction quality is therefore checked
@@ -10,7 +10,7 @@ import pytest
 
 # Imported from the module path directly because __init__.py is intentionally
 # not modified to export the experimental MCMC solver.
-from egghouse.sdo.dem.mcmc import dem_mcmc
+from egghouse.dem.mcmc import dem_mcmc
 
 
 def _synthetic(n_bins=21):

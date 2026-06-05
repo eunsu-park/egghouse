@@ -89,7 +89,7 @@ def dem_sites(
     Examples
     --------
     >>> import numpy as np
-    >>> from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+    >>> from egghouse.dem import get_temperature_response, get_default_temperatures
     >>> temps = get_default_temperatures(n_bins=50)
     >>> response = get_temperature_response(temperatures=temps)
     >>> intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])

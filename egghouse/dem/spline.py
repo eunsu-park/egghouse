@@ -131,7 +131,7 @@ def dem_spline(
         1-sigma uncertainties, same shape as ``intensities``.
     response : np.ndarray
         Temperature response, shape ``(n_temps, n_channels)`` (same
-        convention as :func:`egghouse.sdo.dem.dem_nnls`).
+        convention as :func:`egghouse.dem.dem_nnls`).
     temperatures : np.ndarray
         Temperatures in Kelvin, shape ``(n_temps,)``.
     n_knots : int

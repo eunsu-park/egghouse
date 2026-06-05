@@ -29,7 +29,7 @@ class TestDemGaussian:
     """Single-Gaussian forward-fit DEM inversion."""
 
     def test_reconstructs_and_nonnegative(self):
-        from egghouse.sdo.dem.gaussian import dem_gaussian
+        from egghouse.dem.gaussian import dem_gaussian
 
         T, R, dt, I = _synthetic()
         dem, info = dem_gaussian(I, I * 0.05, R, T)
@@ -40,7 +40,7 @@ class TestDemGaussian:
         assert "chi2_map" in info
 
     def test_recovers_fitted_params(self):
-        from egghouse.sdo.dem.gaussian import dem_gaussian
+        from egghouse.dem.gaussian import dem_gaussian
 
         T, R, dt, I = _synthetic()
         _, info = dem_gaussian(I, I * 0.05, R, T)
@@ -50,7 +50,7 @@ class TestDemGaussian:
         assert float(info["em_peak"]) > 0
 
     def test_batch_shape(self):
-        from egghouse.sdo.dem.gaussian import dem_gaussian
+        from egghouse.dem.gaussian import dem_gaussian
 
         T, R, dt, I = _synthetic()
         batch = np.repeat(I[None, :], 3, axis=0)
@@ -62,7 +62,7 @@ class TestDemGaussian:
         assert info["sigma"].shape == (3,)
 
     def test_shape_mismatch_raises(self):
-        from egghouse.sdo.dem.gaussian import dem_gaussian
+        from egghouse.dem.gaussian import dem_gaussian
 
         T, R, dt, I = _synthetic()
         bad_R = R[:, :3]  # wrong number of channels vs intensities
@@ -74,7 +74,7 @@ class TestDemGaussian:
             raise AssertionError("expected ValueError on response shape mismatch")
 
     def test_invalid_sigma_bound_raises(self):
-        from egghouse.sdo.dem.gaussian import dem_gaussian
+        from egghouse.dem.gaussian import dem_gaussian
 
         T, R, dt, I = _synthetic()
         try:
@@ -85,7 +85,7 @@ class TestDemGaussian:
             raise AssertionError("expected ValueError on non-positive sigma bound")
 
     def test_dead_pixel_returns_zero(self):
-        from egghouse.sdo.dem.gaussian import dem_gaussian
+        from egghouse.dem.gaussian import dem_gaussian
 
         T, R, dt, I = _synthetic()
         dead = np.zeros_like(I)

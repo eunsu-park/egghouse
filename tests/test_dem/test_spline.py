@@ -1,4 +1,4 @@
-"""Tests for the spline forward-fit DEM inversion (egghouse.sdo.dem.spline).
+"""Tests for the spline forward-fit DEM inversion (egghouse.dem.spline).
 
 Synthetic only; no CHIANTI/fiasco needed. Mirrors the synthetic setup used by
 the NNLS tests so the two solvers are exercised on the same problem.
@@ -26,7 +26,7 @@ def _synthetic(n_bins=21):
 class TestDemSpline:
 
     def test_reconstructs_and_nonnegative(self):
-        from egghouse.sdo.dem.spline import dem_spline
+        from egghouse.dem.spline import dem_spline
 
         T, R, dt, A, true, I = _synthetic()
         dem, info = dem_spline(I, 0.05 * I, R, T, n_knots=5)
@@ -43,14 +43,14 @@ class TestDemSpline:
         assert info["knot_logt"].size == 5
 
     def test_squeeze_1d(self):
-        from egghouse.sdo.dem.spline import dem_spline
+        from egghouse.dem.spline import dem_spline
 
         T, R, dt, A, true, I = _synthetic()
         dem, _ = dem_spline(I, 0.05 * I, R, T)
         assert dem.ndim == 1
 
     def test_batch_shape(self):
-        from egghouse.sdo.dem.spline import dem_spline
+        from egghouse.dem.spline import dem_spline
 
         T, R, dt, A, true, I = _synthetic()
         batch = np.repeat(I[None, :], 3, axis=0)
@@ -59,7 +59,7 @@ class TestDemSpline:
         assert info["chi2_map"].shape == (3,)
 
     def test_shape_mismatch_raises(self):
-        from egghouse.sdo.dem.spline import dem_spline
+        from egghouse.dem.spline import dem_spline
 
         T, R, dt, A, true, I = _synthetic()
         wrong = np.zeros((T.size, 4))  # wrong channel count
@@ -67,14 +67,14 @@ class TestDemSpline:
             dem_spline(I, 0.05 * I, wrong, T)
 
     def test_invalid_n_knots_raises(self):
-        from egghouse.sdo.dem.spline import dem_spline
+        from egghouse.dem.spline import dem_spline
 
         T, R, dt, A, true, I = _synthetic()
         with pytest.raises(ValueError, match="n_knots"):
             dem_spline(I, 0.05 * I, R, T, n_knots=1)
 
     def test_zero_pixel_returns_zero_dem(self):
-        from egghouse.sdo.dem.spline import dem_spline
+        from egghouse.dem.spline import dem_spline
 
         T, R, dt, A, true, I = _synthetic()
         zero = np.zeros_like(I)

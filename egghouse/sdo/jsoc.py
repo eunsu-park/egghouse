@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable, Optional, Sequence, TYPE_CHECKING, Union
 
-from .dem.response import AIA_DEM_WAVELENGTHS
+from .dem_response import AIA_DEM_WAVELENGTHS
 
 if TYPE_CHECKING:  # only for type hints, never imported at runtime
     import drms
