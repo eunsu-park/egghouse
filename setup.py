@@ -5,7 +5,7 @@ with open("README.MD", "r", encoding="utf-8") as f:
 
 setup(
     name="egghouse",
-    version="0.9.0",
+    version="0.10.0",
     author="Eunsu Park",
     description="Utility library for solar physics research",
     long_description=long_description,
@@ -51,10 +51,13 @@ setup(
             "sunpy>=4.0",
         ],
         # DEM analysis (temperature response functions)
+        # fiasco backs temperature_response_from_chianti (optional, guarded by
+        # HAS_FIASCO); aiapy builds the AIA wavelength response in egghouse.sdo.
         "dem": [
             "aiapy>=0.7",
             "astropy>=5.0",
             "sunpy>=4.0",
+            "fiasco",
         ],
         # Config module (YAML support)
         "config": [
@@ -77,6 +80,7 @@ setup(
             "astropy>=5.0",
             "sunpy>=4.0",
             "aiapy>=0.7",
+            "fiasco",
             "scikit-image>=0.20",
             "PyWavelets>=1.4",
             "bm3d>=4.0",
