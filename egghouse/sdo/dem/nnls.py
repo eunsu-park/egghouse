@@ -84,6 +84,43 @@ def _solve_pixel(
     return dem, float(np.sum(resid ** 2))
 
 
+def _solve_pixel_adaptive(
+    intensity: np.ndarray,
+    error: np.ndarray,
+    A: np.ndarray,
+    L: np.ndarray,
+    target_chi2: float,
+    bounds: Tuple[float, float] = (1e-4, 1e3),
+    n_iter: int = 22,
+) -> Tuple[np.ndarray, float]:
+    """Per-pixel Tikhonov-NNLS with a discrepancy-principle reg_scale.
+
+    Bisects ``reg_scale`` (log space) so the data chi^2 approaches
+    ``target_chi2`` (typically n_channels). Data chi^2 increases
+    monotonically with ``reg_scale``, so a clean bisection applies. If the
+    target lies outside the bracket, returns the nearest-bracket solution.
+    """
+    if not np.all(np.isfinite(intensity)) or np.all(intensity <= 0):
+        return np.zeros(A.shape[1], dtype=np.float64), 0.0
+    lo, hi = bounds
+    d_lo, c_lo = _solve_pixel(intensity, error, A, L, lo)
+    if c_lo >= target_chi2:
+        return d_lo, c_lo  # already over-fit floor; cannot regularize less
+    d_hi, c_hi = _solve_pixel(intensity, error, A, L, hi)
+    if c_hi <= target_chi2:
+        return d_hi, c_hi  # cannot fit worse than this; positivity/L floor
+    best = (d_hi, c_hi)
+    for _ in range(n_iter):
+        mid = np.sqrt(lo * hi)
+        d_m, c_m = _solve_pixel(intensity, error, A, L, mid)
+        best = (d_m, c_m)
+        if c_m < target_chi2:
+            lo = mid
+        else:
+            hi = mid
+    return best
+
+
 def calibrate_reg_scale(
     intensities: np.ndarray,
     errors: np.ndarray,
@@ -125,6 +162,7 @@ def dem_nnls(
     *,
     reg_order: int = 2,
     reg_scale: float = 1e-2,
+    target_chi2: float = None,
 ) -> Tuple[np.ndarray, Dict]:
     """Tikhonov-regularized NNLS DEM inversion (single pixel or batch).
 
@@ -143,8 +181,14 @@ def dem_nnls(
     reg_order : {0, 2}
         Tikhonov order: 0 = magnitude, 2 = second-difference smoothness.
     reg_scale : float
-        Dimensionless regularization knob (see :func:`calibrate_reg_scale`
-        to pick it for chi^2 ~ n_channels).
+        Fixed dimensionless regularization knob (used when ``target_chi2``
+        is None; see :func:`calibrate_reg_scale` to pick a global value).
+    target_chi2 : float, optional
+        If given, each pixel's ``reg_scale`` is found by a per-pixel
+        discrepancy-principle bisection so its data chi^2 approaches this
+        value (typically n_channels). Slower but avoids a global reg_scale
+        over-fitting bright pixels / under-fitting faint ones. Overrides
+        ``reg_scale``.
 
     Returns
     -------
@@ -175,12 +219,17 @@ def dem_nnls(
     dem = np.zeros((n_pixels, n_temps), dtype=np.float64)
     chi2_map = np.zeros(n_pixels, dtype=np.float64)
     for p in range(n_pixels):
-        dem[p], chi2_map[p] = _solve_pixel(intensities[p], errors[p], A, L, reg_scale)
+        if target_chi2 is not None:
+            dem[p], chi2_map[p] = _solve_pixel_adaptive(
+                intensities[p], errors[p], A, L, target_chi2)
+        else:
+            dem[p], chi2_map[p] = _solve_pixel(intensities[p], errors[p], A, L, reg_scale)
 
     info = {
         "chi2": float(np.mean(chi2_map)),
         "chi2_map": chi2_map,
-        "reg_scale": float(reg_scale),
+        "reg_scale": None if target_chi2 is not None else float(reg_scale),
+        "target_chi2": target_chi2,
     }
     if squeeze:
         dem = dem.squeeze()
