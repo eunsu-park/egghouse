@@ -11,6 +11,24 @@ import numpy as np
 
 from .sites import dem_sites
 from .nnls import calibrate_reg_scale, dem_nnls
+from .sparse import dem_sparse
+from .regularized import dem_regularized
+from .plowman import dem_plowman
+from .mcmc import dem_mcmc
+from .spline import dem_spline
+from .gaussian import dem_gaussian
+
+# Solvers that take the common (intensities, errors, response, temperatures)
+# signature with their own internal defaults (sites/nnls are handled
+# separately because they take extra map-level parameters).
+_EXTRA_SOLVERS = {
+    "sparse": dem_sparse,
+    "regularized": dem_regularized,
+    "plowman": dem_plowman,
+    "mcmc": dem_mcmc,
+    "spline": dem_spline,
+    "gaussian": dem_gaussian,
+}
 
 
 def dem_map(
@@ -180,8 +198,13 @@ def dem_map(
                     valid_images, valid_errors, response, temperatures,
                     max_iter=max_iter, tol=tol,
                 )
+            elif method in _EXTRA_SOLVERS:
+                dem_batch, batch_info = _EXTRA_SOLVERS[method](
+                    valid_images, valid_errors, response, temperatures,
+                )
             else:
-                raise ValueError(f"method must be 'sites' or 'nnls'; got {method!r}")
+                valid = ["sites", "nnls", *sorted(_EXTRA_SOLVERS)]
+                raise ValueError(f"method must be one of {valid}; got {method!r}")
 
             # Store results
             dem_flat = np.zeros((chunk_h * chunk_w, n_temps), dtype=np.float64)
