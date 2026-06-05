@@ -10,7 +10,8 @@ Modules:
     stacking: Solar rotation-corrected image stacking for HMI.
     level15: Level 1.0 to Level 1.5 preprocessing.
     quality: QUALITY keyword interpretation utilities.
-    dem: DEM (Differential Emission Measure) analysis using SITES algorithm.
+    dem_response: AIA temperature response K(T) (instrument-specific wiring;
+        the instrument-agnostic DEM solvers live in ``egghouse.dem``).
 """
 
 from .aia import aia_intscale, AIA_CALIBRATION, get_aia_calibration
@@ -77,20 +78,12 @@ from .jsoc import (
     cached_pointing_table,
     AIA_LEV1_EUV_SERIES,
 )
-from .dem import (
-    # Response functions
+from .dem_response import (
+    # AIA temperature response. The DEM solvers/utilities are now generic and
+    # live in ``egghouse.dem`` (e.g. ``from egghouse.dem import dem_sites, dem_map``).
     get_temperature_response,
-    get_default_temperatures,
-    load_ssw_temperature_response,
+    AIA_DEM_WAVELENGTHS,
     HAS_AIAPY,
-    # SITES algorithm
-    dem_sites,
-    dem_sites_pixel,
-    # Utilities
-    dem_map,
-    compute_dem_errors,
-    get_emission_measure,
-    get_mean_temperature,
 )
 
 __all__ = [
@@ -157,17 +150,8 @@ __all__ = [
     'aia_deconvolve',
     'cached_aia_psfs',
     'mask_out_of_disk',
-    # DEM - Response functions
+    # AIA temperature response (DEM solvers/utils are in egghouse.dem)
     'get_temperature_response',
-    'get_default_temperatures',
-    'load_ssw_temperature_response',
+    'AIA_DEM_WAVELENGTHS',
     'HAS_AIAPY',
-    # DEM - SITES algorithm
-    'dem_sites',
-    'dem_sites_pixel',
-    # DEM - Utilities
-    'dem_map',
-    'compute_dem_errors',
-    'get_emission_measure',
-    'get_mean_temperature',
 ]

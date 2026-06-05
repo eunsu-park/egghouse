@@ -4,6 +4,39 @@ All notable changes to **egghouse** are recorded here. The format is loosely
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed — DEM is now a top-level, instrument-agnostic package
+
+**Breaking:** moved `egghouse.sdo.dem` → **`egghouse.dem`**. The DEM
+inversion solvers and generic temperature-response tools are
+instrument-agnostic (they take `(intensities, errors, response,
+temperatures)`), so they no longer live under `sdo`.
+
+- `egghouse.dem` — solvers (`dem_sites`, `dem_nnls`, `dem_regularized`,
+  `dem_sparse`, `dem_plowman`, `dem_mcmc`, `dem_spline`, `dem_gaussian`),
+  `dem_map`, generic `temperature_response_from_chianti`,
+  `load_ssw_temperature_response`, `get_default_temperatures`, utils.
+- `egghouse.sdo` — keeps the **AIA-specific** temperature response:
+  `get_temperature_response` and `AIA_DEM_WAVELENGTHS` (new module
+  `egghouse.sdo.dem_response`), which builds the AIA wavelength response via
+  aiapy and calls `egghouse.dem.temperature_response_from_chianti`.
+- Migration: `from egghouse.sdo.dem import dem_sites` →
+  `from egghouse.dem import dem_sites`; `get_temperature_response` /
+  `AIA_DEM_WAVELENGTHS` stay at `from egghouse.sdo import ...`.
+
+### Added — DEM solvers + CHIANTI response (under `egghouse.dem`)
+
+- Seven solvers beyond SITES: Tikhonov-NNLS (Lawson & Hanson 1995; Hannah &
+  Kontar 2012), regularized GSVD (Hannah & Kontar 2012), sparse basis-pursuit
+  (Cheung et al. 2015), fast linear (Plowman et al. 2013), MCMC (Kashyap &
+  Drake 1998), spline forward-fit (Weber et al. 2004), single-Gaussian
+  (Aschwanden et al. 2013). `dem_map(method=...)` dispatches.
+- `temperature_response_from_chianti` — recompute K(T) from CHIANTI (fiasco)
+  contribution functions × a wavelength response (replaces aiapy's removed
+  `Channel.temperature_response`). Also fixed the SITES iteration
+  (multiplicative MART); the previous additive update was non-physical.
+
 ## [0.9.0] — 2026-06-04
 
 ### Added — `egghouse.denoise` (classical image denoisers)

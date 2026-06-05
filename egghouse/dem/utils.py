@@ -10,6 +10,25 @@ from typing import Callable, Dict, Optional, Tuple, Union
 import numpy as np
 
 from .sites import dem_sites
+from .nnls import calibrate_reg_scale, dem_nnls
+from .sparse import dem_sparse
+from .regularized import dem_regularized
+from .plowman import dem_plowman
+from .mcmc import dem_mcmc
+from .spline import dem_spline
+from .gaussian import dem_gaussian
+
+# Solvers that take the common (intensities, errors, response, temperatures)
+# signature with their own internal defaults (sites/nnls are handled
+# separately because they take extra map-level parameters).
+_EXTRA_SOLVERS = {
+    "sparse": dem_sparse,
+    "regularized": dem_regularized,
+    "plowman": dem_plowman,
+    "mcmc": dem_mcmc,
+    "spline": dem_spline,
+    "gaussian": dem_gaussian,
+}
 
 
 def dem_map(
@@ -21,6 +40,10 @@ def dem_map(
     chunk_size: int = 512,
     max_iter: int = 100,
     tol: float = 1e-3,
+    method: str = "sites",
+    reg_order: int = 2,
+    reg_scale: Optional[float] = None,
+    target_chi2: Optional[float] = None,
     progress_callback: Optional[Callable[[int, int], None]] = None,
 ) -> Tuple[np.ndarray, Dict]:
     """
@@ -74,7 +97,7 @@ def dem_map(
     Examples
     --------
     >>> import numpy as np
-    >>> from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+    >>> from egghouse.dem import get_temperature_response, get_default_temperatures
     >>> temps = get_default_temperatures(n_bins=50)
     >>> response = get_temperature_response(temperatures=temps)
     >>> images = np.random.rand(256, 256, 6).astype(np.float32) * 100
@@ -116,6 +139,25 @@ def dem_map(
     processed = 0
     converged_count = 0
 
+    # For NNLS: pick one global regularization scale (discrepancy principle)
+    # targeting chi^2 ~ n_channels, from a sample of signal-bearing pixels.
+    if method == "nnls" and reg_scale is None:
+        if target_chi2 is None:
+            target_chi2 = float(n_channels)
+        flat_img = image_cube.reshape(-1, n_channels)
+        flat_err = error_cube.reshape(-1, n_channels)
+        flat_m = mask.flatten() & (flat_img.sum(axis=1) > 0)
+        valid_idx = np.where(flat_m)[0]
+        if valid_idx.size:
+            step = max(1, valid_idx.size // 400)
+            sample = valid_idx[::step][:400]
+            reg_scale = calibrate_reg_scale(
+                flat_img[sample], flat_err[sample], response, temperatures,
+                target_chi2=target_chi2, reg_order=reg_order,
+            )
+        else:
+            reg_scale = 1e-2
+
     # Process in chunks
     for y_start in range(0, height, chunk_size):
         y_end = min(y_start + chunk_size, height)
@@ -145,15 +187,24 @@ def dem_map(
             if len(valid_images) == 0:
                 continue
 
-            # Run SITES on batch
-            dem_batch, batch_info = dem_sites(
-                valid_images,
-                valid_errors,
-                response,
-                temperatures,
-                max_iter=max_iter,
-                tol=tol,
-            )
+            # Run the selected solver on the batch
+            if method == "nnls":
+                dem_batch, batch_info = dem_nnls(
+                    valid_images, valid_errors, response, temperatures,
+                    reg_order=reg_order, reg_scale=reg_scale,
+                )
+            elif method == "sites":
+                dem_batch, batch_info = dem_sites(
+                    valid_images, valid_errors, response, temperatures,
+                    max_iter=max_iter, tol=tol,
+                )
+            elif method in _EXTRA_SOLVERS:
+                dem_batch, batch_info = _EXTRA_SOLVERS[method](
+                    valid_images, valid_errors, response, temperatures,
+                )
+            else:
+                valid = ["sites", "nnls", *sorted(_EXTRA_SOLVERS)]
+                raise ValueError(f"method must be one of {valid}; got {method!r}")
 
             # Store results
             dem_flat = np.zeros((chunk_h * chunk_w, n_temps), dtype=np.float64)
@@ -161,8 +212,12 @@ def dem_map(
             iter_flat = np.zeros(chunk_h * chunk_w, dtype=np.int32)
 
             dem_flat[flat_mask] = dem_batch
-            chi2_flat[flat_mask] = batch_info["chi2"]
-            iter_flat[flat_mask] = batch_info["iterations"]
+            # per-pixel chi^2 when the solver provides it (nnls), else scalar
+            chi2_per = batch_info.get("chi2_map")
+            if chi2_per is None:
+                chi2_per = np.full(int(np.sum(flat_mask)), batch_info["chi2"])
+            chi2_flat[flat_mask] = chi2_per
+            iter_flat[flat_mask] = batch_info.get("iterations", 1)
 
             dem_cube[y_start:y_end, x_start:x_end] = dem_flat.reshape(
                 chunk_h, chunk_w, n_temps
@@ -176,7 +231,7 @@ def dem_map(
 
             # Update progress
             processed += np.sum(flat_mask)
-            if batch_info["converged"]:
+            if batch_info.get("converged", True):
                 converged_count += np.sum(flat_mask)
 
             if progress_callback is not None:
@@ -189,6 +244,8 @@ def dem_map(
         "mean_iterations": float(np.mean(iter_map[mask])) if total_pixels > 0 else 0,
         "chi2_map": chi2_map,
         "iter_map": iter_map,
+        "method": method,
+        "reg_scale": reg_scale if method == "nnls" else None,
     }
 
     return dem_cube, info

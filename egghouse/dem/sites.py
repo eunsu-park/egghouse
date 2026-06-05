@@ -68,14 +68,18 @@ def dem_sites(
 
     Notes
     -----
-    The SITES algorithm works by iteratively updating the DEM:
+    The solver uses a multiplicative (MART / EM-style) iteration, which
+    preserves positivity and self-scales the DEM magnitude:
 
-    1. Initialize DEM from observations
-    2. Compute synthetic intensities: I_syn = R @ DEM * dT
-    3. Compute residuals: delta_I = I_obs - I_syn
-    4. Update DEM: DEM += alpha * delta_I / R_weight
-    5. Apply positivity constraint
-    6. Check convergence
+    1. Initialize a strictly-positive flat DEM reproducing the total signal.
+    2. Compute synthetic intensities: I_syn = R @ DEM * dT.
+    3. Scale each temperature bin by the error-weighted, response-weighted
+       ratio of observed to synthetic intensity:
+       DEM(T) *= [sum_c w_c R_c(T) (I_obs/I_syn)_c] / [sum_c w_c R_c(T)].
+    4. Check chi-squared convergence.
+
+    For an exact, deterministic alternative see ``dem_nnls``
+    (Tikhonov-regularized non-negative least squares).
 
     References
     ----------
@@ -85,7 +89,7 @@ def dem_sites(
     Examples
     --------
     >>> import numpy as np
-    >>> from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+    >>> from egghouse.dem import get_temperature_response, get_default_temperatures
     >>> temps = get_default_temperatures(n_bins=50)
     >>> response = get_temperature_response(temperatures=temps)
     >>> intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
@@ -114,29 +118,29 @@ def dem_sites(
     dlogt = np.gradient(logt)
     dt = temperatures * np.log(10) * dlogt  # dT = T * ln(10) * d(log T)
 
-    # Response weights for update step
-    response_sum = np.sum(response, axis=1)
-    response_sum = np.maximum(response_sum, 1e-30)  # Avoid division by zero
+    # Error weights (1/sigma^2) and the design matrix A[c,t] = R[t,c]*dT[t],
+    # so synthetic intensities are I_syn = DEM @ A.T.
+    eps = 1e-300
+    weights = 1.0 / np.maximum(errors, 1e-30) ** 2           # (n_pixels, n_channels)
+    A = (response * dt[:, np.newaxis]).T                     # (n_channels, n_temps)
 
-    # Initialize DEM
-    dem = _initialize_dem(intensities, response, temperatures, dt)
+    # Strictly-positive initialization (a flat DEM reproducing the total
+    # signal) — required because the update is multiplicative.
+    a_total = max(float(A.sum()), eps)
+    dem = np.maximum(intensities.sum(axis=1, keepdims=True), eps) / a_total
+    dem = np.repeat(dem, n_temps, axis=1)                    # (n_pixels, n_temps)
 
-    # Iterative solver
     chi2_history = []
     converged = False
+    residuals = intensities - dem @ A.T
+    chi2_mean = float(np.mean(np.sum(weights * residuals ** 2, axis=1)))
 
     for iteration in range(max_iter):
-        # Compute synthetic intensities: I_syn = sum_T(R * DEM * dT)
-        # Shape: (n_pixels, n_channels)
-        synthetic = np.einsum("tc,pt,t->pc", response, dem, dt)
-
-        # Compute chi-squared
+        synthetic = np.maximum(dem @ A.T, eps)              # (n_pixels, n_channels)
         residuals = intensities - synthetic
-        chi2 = np.sum((residuals / errors) ** 2, axis=1)
-        chi2_mean = np.mean(chi2)
+        chi2_mean = float(np.mean(np.sum(weights * residuals ** 2, axis=1)))
         chi2_history.append(chi2_mean)
 
-        # Check convergence
         if iteration > 0:
             rel_change = abs(chi2_history[-1] - chi2_history[-2]) / (
                 chi2_history[-2] + 1e-10
@@ -145,22 +149,20 @@ def dem_sites(
                 converged = True
                 break
 
-        # Update DEM
-        # delta_DEM = alpha * (I_obs - I_syn) / R_weight
-        alpha = 0.5  # Relaxation factor
-        for c in range(n_channels):
-            update = alpha * residuals[:, c:c+1] * response[:, c] / response_sum
-            dem += update
+        # MART / EM multiplicative update (Morgan & Pickering 2019): scale
+        # each temperature bin by the response-weighted ratio of observed to
+        # synthetic intensity. Multiplicative => preserves positivity and
+        # self-scales the DEM magnitude.
+        weighted_ratio = weights * (intensities / synthetic)   # (n_pixels, n_channels)
+        numer = weighted_ratio @ A                             # (n_pixels, n_temps)
+        denom = np.maximum(weights @ A, eps)
+        dem = dem * (numer / denom)
 
-        # Apply positivity constraint
         if positivity:
             dem = np.maximum(dem, 0.0)
-
-        # Apply regularization (smoothness)
         if regularization > 0:
-            dem = _apply_smoothing(dem, regularization)
+            dem = np.maximum(_apply_smoothing(dem, regularization), eps)
 
-    # Prepare output
     info = {
         "iterations": iteration + 1,
         "converged": converged,
@@ -229,58 +231,6 @@ def dem_sites_pixel(
         max_iter=max_iter,
         tol=tol,
     )
-
-
-def _initialize_dem(
-    intensities: np.ndarray,
-    response: np.ndarray,
-    temperatures: np.ndarray,
-    dt: np.ndarray,
-) -> np.ndarray:
-    """
-    Initialize DEM estimate from observations.
-
-    Uses a simple back-projection method:
-        DEM_init = I / (sum_c R_c * dT)
-
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities, shape (n_pixels, n_channels).
-    response : np.ndarray
-        Response matrix, shape (n_temps, n_channels).
-    temperatures : np.ndarray
-        Temperature array.
-    dt : np.ndarray
-        Temperature bin widths.
-
-    Returns
-    -------
-    np.ndarray
-        Initial DEM estimate, shape (n_pixels, n_temps).
-    """
-    n_pixels, n_channels = intensities.shape
-    n_temps = len(temperatures)
-
-    # Sum of response over channels, weighted by dT
-    response_integral = np.sum(response * dt[:, np.newaxis], axis=0)
-    response_integral = np.maximum(response_integral, 1e-30)
-
-    # Back-projection
-    dem_init = np.zeros((n_pixels, n_temps), dtype=np.float64)
-
-    # Weighted average across channels
-    for c in range(n_channels):
-        weight = response[:, c] / response_integral[c]
-        dem_init += intensities[:, c:c+1] * weight
-
-    # Normalize by temperature bin width
-    dem_init /= dt
-
-    # Ensure positivity
-    dem_init = np.maximum(dem_init, 0.0)
-
-    return dem_init
 
 
 def _apply_smoothing(
