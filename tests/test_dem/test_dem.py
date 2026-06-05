@@ -1,4 +1,4 @@
-"""Tests for egghouse.sdo.dem module."""
+"""Tests for egghouse.dem module."""
 
 import numpy as np
 import pytest
@@ -9,7 +9,7 @@ class TestGetDefaultTemperatures:
 
     def test_default_values(self):
         """Test default temperature grid."""
-        from egghouse.sdo.dem import get_default_temperatures
+        from egghouse.dem import get_default_temperatures
 
         temps = get_default_temperatures()
         assert temps.shape == (100,)
@@ -18,7 +18,7 @@ class TestGetDefaultTemperatures:
 
     def test_custom_range(self):
         """Test custom temperature range."""
-        from egghouse.sdo.dem import get_default_temperatures
+        from egghouse.dem import get_default_temperatures
 
         temps = get_default_temperatures(logt_min=6.0, logt_max=7.0, n_bins=50)
         assert temps.shape == (50,)
@@ -27,7 +27,7 @@ class TestGetDefaultTemperatures:
 
     def test_temperature_ordering(self):
         """Test that temperatures are in ascending order."""
-        from egghouse.sdo.dem import get_default_temperatures
+        from egghouse.dem import get_default_temperatures
 
         temps = get_default_temperatures()
         assert np.all(np.diff(temps) > 0)
@@ -44,14 +44,14 @@ class TestGetTemperatureResponse:
 
     @pytest.fixture
     def force_fallback(self, monkeypatch):
-        from egghouse.sdo.dem import response as _resp
+        from egghouse.sdo import dem_response as _resp
 
         monkeypatch.setattr(_resp, "HAS_AIAPY", False)
         return monkeypatch
 
     def test_fallback_response_shape(self, force_fallback):
         """Test fallback response has correct shape."""
-        from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+        from egghouse.sdo import get_temperature_response; from egghouse.dem import get_default_temperatures
 
         temps = get_default_temperatures(n_bins=50)
         with pytest.warns(UserWarning, match="approximate"):
@@ -61,7 +61,7 @@ class TestGetTemperatureResponse:
 
     def test_fallback_response_positive(self, force_fallback):
         """Test fallback response values are positive."""
-        from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+        from egghouse.sdo import get_temperature_response; from egghouse.dem import get_default_temperatures
 
         temps = get_default_temperatures(n_bins=50)
         with pytest.warns(UserWarning, match="approximate"):
@@ -71,7 +71,7 @@ class TestGetTemperatureResponse:
 
     def test_custom_wavelengths(self, force_fallback):
         """Test response with custom wavelengths."""
-        from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+        from egghouse.sdo import get_temperature_response; from egghouse.dem import get_default_temperatures
 
         temps = get_default_temperatures(n_bins=30)
         wavelengths = [171, 193, 211]
@@ -84,7 +84,7 @@ class TestGetTemperatureResponse:
 
     def test_invalid_wavelength(self, force_fallback):
         """Test error on invalid wavelength."""
-        from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+        from egghouse.sdo import get_temperature_response; from egghouse.dem import get_default_temperatures
 
         temps = get_default_temperatures(n_bins=20)
         with pytest.raises(ValueError, match="Unknown wavelength"):
@@ -96,8 +96,8 @@ class TestGetTemperatureResponse:
         disabled aiapy-only path must raise a clear NotImplementedError
         rather than silently failing on the removed
         ``Channel.temperature_response`` upstream API."""
-        from egghouse.sdo.dem import response as _resp
-        from egghouse.sdo.dem import get_default_temperatures, get_temperature_response
+        from egghouse.sdo import dem_response as _resp
+        from egghouse.dem import get_default_temperatures; from egghouse.sdo import get_temperature_response
 
         if not _resp.HAS_AIAPY:
             pytest.skip("aiapy not installed; aiapy path is not exercised here")
@@ -116,7 +116,7 @@ class TestFoldLinesIntoChannel:
     """
 
     def test_single_line_unit_chain(self):
-        from egghouse.sdo.dem.response import _fold_lines_into_channel
+        from egghouse.dem.response import _fold_lines_into_channel
 
         # One line at 171.1 A; flat channel response 2.0 cm2 DN/ph; Omega=4pi
         # so the prefactor is exactly 1 -> K(T) = g_photon * R.
@@ -131,7 +131,7 @@ class TestFoldLinesIntoChannel:
         np.testing.assert_allclose(out, [6.0, 10.0])
 
     def test_line_outside_grid_contributes_zero(self):
-        from egghouse.sdo.dem.response import _fold_lines_into_channel
+        from egghouse.dem.response import _fold_lines_into_channel
 
         out = _fold_lines_into_channel(
             np.array([[3.0]]),
@@ -171,7 +171,7 @@ class TestLoadSswTemperatureResponse:
     get_temperature_response."""
 
     def test_returns_source_grid_when_no_interpolation(self, tmp_path):
-        from egghouse.sdo.dem import load_ssw_temperature_response
+        from egghouse.dem import load_ssw_temperature_response
 
         path = tmp_path / "ssw.npz"
         log_t, channels, response = _make_synthetic_ssw_npz(path)
@@ -182,7 +182,7 @@ class TestLoadSswTemperatureResponse:
         np.testing.assert_allclose(out, response.T)
 
     def test_interpolates_to_target_log_t(self, tmp_path):
-        from egghouse.sdo.dem import load_ssw_temperature_response
+        from egghouse.dem import load_ssw_temperature_response
 
         path = tmp_path / "ssw.npz"
         log_t, _, response = _make_synthetic_ssw_npz(path, n_t=21)
@@ -195,7 +195,7 @@ class TestLoadSswTemperatureResponse:
         np.testing.assert_allclose(out, response[:, [3, 7, 12, 18]].T)
 
     def test_reorders_channels(self, tmp_path):
-        from egghouse.sdo.dem import load_ssw_temperature_response
+        from egghouse.dem import load_ssw_temperature_response
 
         path = tmp_path / "ssw.npz"
         _, _, response = _make_synthetic_ssw_npz(path)
@@ -207,7 +207,7 @@ class TestLoadSswTemperatureResponse:
         np.testing.assert_allclose(out[:, 1], response[0])  # 94  row
 
     def test_missing_wavelength_raises(self, tmp_path):
-        from egghouse.sdo.dem import load_ssw_temperature_response
+        from egghouse.dem import load_ssw_temperature_response
 
         path = tmp_path / "ssw.npz"
         _make_synthetic_ssw_npz(path)
@@ -215,7 +215,7 @@ class TestLoadSswTemperatureResponse:
             load_ssw_temperature_response(path, wavelengths=[999])
 
     def test_missing_response_key_raises(self, tmp_path):
-        from egghouse.sdo.dem import load_ssw_temperature_response
+        from egghouse.dem import load_ssw_temperature_response
 
         path = tmp_path / "ssw.npz"
         _make_synthetic_ssw_npz(path, response_key="response_v10_en")
@@ -223,7 +223,7 @@ class TestLoadSswTemperatureResponse:
             load_ssw_temperature_response(path, response_key="response_v9_en")
 
     def test_out_of_range_log_t_raises(self, tmp_path):
-        from egghouse.sdo.dem import load_ssw_temperature_response
+        from egghouse.dem import load_ssw_temperature_response
 
         path = tmp_path / "ssw.npz"
         _make_synthetic_ssw_npz(path)
@@ -233,11 +233,11 @@ class TestLoadSswTemperatureResponse:
             )
 
     def test_get_temperature_response_dispatches_to_ssw(self, tmp_path):
-        from egghouse.sdo.dem import (
+        from egghouse.dem import (
             get_default_temperatures,
-            get_temperature_response,
             load_ssw_temperature_response,
         )
+        from egghouse.sdo import get_temperature_response
 
         path = tmp_path / "ssw.npz"
         _make_synthetic_ssw_npz(path, n_t=21)
@@ -256,7 +256,7 @@ class TestDemSites:
     @pytest.fixture
     def synthetic_data(self):
         """Create synthetic test data with known DEM."""
-        from egghouse.sdo.dem import get_default_temperatures
+        from egghouse.dem import get_default_temperatures
 
         # Simple temperature grid
         temps = get_default_temperatures(logt_min=5.8, logt_max=6.8, n_bins=30)
@@ -290,7 +290,7 @@ class TestDemSites:
 
     def test_dem_sites_single_pixel(self, synthetic_data):
         """Test DEM inversion for single pixel."""
-        from egghouse.sdo.dem import dem_sites
+        from egghouse.dem import dem_sites
 
         dem, info = dem_sites(
             synthetic_data["intensities"],
@@ -307,7 +307,7 @@ class TestDemSites:
 
     def test_dem_sites_positivity(self, synthetic_data):
         """Test DEM positivity constraint."""
-        from egghouse.sdo.dem import dem_sites
+        from egghouse.dem import dem_sites
 
         dem, _ = dem_sites(
             synthetic_data["intensities"],
@@ -321,7 +321,7 @@ class TestDemSites:
 
     def test_dem_sites_batch(self, synthetic_data):
         """Test batch DEM inversion."""
-        from egghouse.sdo.dem import dem_sites
+        from egghouse.dem import dem_sites
 
         # Create batch of 10 pixels
         n_pixels = 10
@@ -339,7 +339,7 @@ class TestDemSites:
 
     def test_dem_sites_shape_mismatch(self, synthetic_data):
         """Test error on shape mismatch."""
-        from egghouse.sdo.dem import dem_sites
+        from egghouse.dem import dem_sites
 
         wrong_response = np.zeros((30, 4))  # Wrong number of channels
 
@@ -357,7 +357,7 @@ class TestDemSitesPixel:
 
     def test_single_pixel_interface(self):
         """Test simplified single-pixel interface."""
-        from egghouse.sdo.dem import dem_sites_pixel, get_default_temperatures
+        from egghouse.dem import dem_sites_pixel, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=25)
         response = np.random.rand(25, 6) * 1e-26
@@ -375,7 +375,7 @@ class TestDemMap:
 
     def test_dem_map_small(self):
         """Test DEM map on small image."""
-        from egghouse.sdo.dem import dem_map, get_default_temperatures
+        from egghouse.dem import dem_map, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=20)
         response = np.random.rand(20, 6) * 1e-26
@@ -395,7 +395,7 @@ class TestDemMap:
 
     def test_dem_map_with_mask(self):
         """Test DEM map with mask."""
-        from egghouse.sdo.dem import dem_map, get_default_temperatures
+        from egghouse.dem import dem_map, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=15)
         response = np.random.rand(15, 6) * 1e-26
@@ -416,7 +416,7 @@ class TestDemMap:
 
     def test_dem_map_invalid_shape(self):
         """Test error on invalid input shape."""
-        from egghouse.sdo.dem import dem_map, get_default_temperatures
+        from egghouse.dem import dem_map, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=10)
         response = np.random.rand(10, 6) * 1e-26
@@ -434,7 +434,7 @@ class TestEmissionMeasure:
 
     def test_em_calculation(self):
         """Test emission measure calculation."""
-        from egghouse.sdo.dem import get_emission_measure, get_default_temperatures
+        from egghouse.dem import get_emission_measure, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=50)
         # Simple DEM
@@ -447,7 +447,7 @@ class TestEmissionMeasure:
 
     def test_em_temperature_range(self):
         """Test emission measure with temperature limits."""
-        from egghouse.sdo.dem import get_emission_measure, get_default_temperatures
+        from egghouse.dem import get_emission_measure, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=50)
         dem = np.ones(50) * 1e22
@@ -459,7 +459,7 @@ class TestEmissionMeasure:
 
     def test_em_batch(self):
         """Test emission measure for batch."""
-        from egghouse.sdo.dem import get_emission_measure, get_default_temperatures
+        from egghouse.dem import get_emission_measure, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=30)
         dem = np.random.rand(10, 30) * 1e22
@@ -474,7 +474,7 @@ class TestMeanTemperature:
 
     def test_mean_temperature(self):
         """Test mean temperature calculation."""
-        from egghouse.sdo.dem import get_mean_temperature, get_default_temperatures
+        from egghouse.dem import get_mean_temperature, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=50)
         # Gaussian DEM peaked at log T = 6.2
@@ -487,7 +487,7 @@ class TestMeanTemperature:
 
     def test_mean_temperature_batch(self):
         """Test mean temperature for batch."""
-        from egghouse.sdo.dem import get_mean_temperature, get_default_temperatures
+        from egghouse.dem import get_mean_temperature, get_default_temperatures
 
         temps = get_default_temperatures(n_bins=30)
         dem = np.random.rand(5, 30) * 1e22
@@ -503,7 +503,7 @@ class TestDemToLoci:
 
     def test_loci_shape(self):
         """Test EM loci curves shape."""
-        from egghouse.sdo.dem.utils import dem_to_loci
+        from egghouse.dem.utils import dem_to_loci
 
         response = np.random.rand(50, 6) * 1e-26
         intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
@@ -515,7 +515,7 @@ class TestDemToLoci:
 
     def test_loci_positive(self):
         """Test EM loci values are positive."""
-        from egghouse.sdo.dem.utils import dem_to_loci
+        from egghouse.dem.utils import dem_to_loci
 
         response = np.random.rand(30, 6) * 1e-26 + 1e-30
         intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
@@ -531,8 +531,8 @@ class TestComputeDemErrors:
 
     def test_error_shape(self):
         """Test DEM error shape."""
-        from egghouse.sdo.dem import get_default_temperatures
-        from egghouse.sdo.dem.utils import compute_dem_errors
+        from egghouse.dem import get_default_temperatures
+        from egghouse.dem.utils import compute_dem_errors
 
         temps = get_default_temperatures(n_bins=20)
         response = np.random.rand(20, 6) * 1e-26
@@ -548,8 +548,8 @@ class TestComputeDemErrors:
 
     def test_error_positive(self):
         """Test DEM errors are positive."""
-        from egghouse.sdo.dem import get_default_temperatures
-        from egghouse.sdo.dem.utils import compute_dem_errors
+        from egghouse.dem import get_default_temperatures
+        from egghouse.dem.utils import compute_dem_errors
 
         temps = get_default_temperatures(n_bins=15)
         response = np.random.rand(15, 6) * 1e-26
@@ -568,7 +568,7 @@ class TestDemNNLS:
     """Tikhonov-NNLS DEM inversion (synthetic; no CHIANTI/fiasco needed)."""
 
     def _synthetic(self, n_bins=21):
-        from egghouse.sdo.dem import get_default_temperatures
+        from egghouse.dem import get_default_temperatures
         T = get_default_temperatures(n_bins=n_bins)
         logt = np.log10(T)
         peaks = [6.8, 5.6, 5.9, 6.2, 6.3, 6.4]
@@ -581,7 +581,7 @@ class TestDemNNLS:
         return T, R, dt, I
 
     def test_reconstructs_and_nonnegative(self):
-        from egghouse.sdo.dem import dem_nnls
+        from egghouse.dem import dem_nnls
         T, R, dt, I = self._synthetic()
         dem, info = dem_nnls(I, I * 0.05, R, T, reg_order=2, reg_scale=1e-3)
         assert dem.shape == (T.size,)
@@ -591,7 +591,7 @@ class TestDemNNLS:
         assert "chi2_map" in info
 
     def test_batch_shape(self):
-        from egghouse.sdo.dem import dem_nnls
+        from egghouse.dem import dem_nnls
         T, R, dt, I = self._synthetic()
         batch = np.repeat(I[None, :], 3, axis=0)
         dem, info = dem_nnls(batch, batch * 0.05, R, T, reg_scale=1e-3)
@@ -599,7 +599,7 @@ class TestDemNNLS:
         assert info["chi2_map"].shape == (3,)
 
     def test_calibrate_targets_chi2(self):
-        from egghouse.sdo.dem import calibrate_reg_scale, dem_nnls
+        from egghouse.dem import calibrate_reg_scale, dem_nnls
         T, R, dt, I = self._synthetic()
         batch = np.repeat(I[None, :], 20, axis=0)
         rs = calibrate_reg_scale(batch, batch * 0.1, R, T, target_chi2=6.0, reg_order=2)
@@ -612,7 +612,7 @@ class TestDemNNLSAdaptiveLambda:
     """Per-pixel discrepancy-principle reg_scale (target_chi2)."""
 
     def test_target_chi2_is_approached(self):
-        from egghouse.sdo.dem import dem_nnls, get_default_temperatures
+        from egghouse.dem import dem_nnls, get_default_temperatures
         T = get_default_temperatures(n_bins=21)
         logt = np.log10(T)
         peaks = [6.8, 5.6, 5.9, 6.2, 6.3, 6.4]

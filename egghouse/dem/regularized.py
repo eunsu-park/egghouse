@@ -279,7 +279,7 @@ def dem_regularized(
         1-sigma uncertainties, same shape as ``intensities``.
     response : np.ndarray
         Temperature response, shape ``(n_temps, n_channels)`` (same convention
-        as :func:`egghouse.sdo.dem.dem_sites` / :func:`dem_nnls`).
+        as :func:`egghouse.dem.dem_sites` / :func:`dem_nnls`).
     temperatures : np.ndarray
         Temperatures in Kelvin, shape ``(n_temps,)``.
     reg_order : {0, 2}

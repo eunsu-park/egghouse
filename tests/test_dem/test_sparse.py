@@ -1,4 +1,4 @@
-"""Tests for sparse / basis-pursuit DEM inversion (egghouse.sdo.dem.sparse)."""
+"""Tests for sparse / basis-pursuit DEM inversion (egghouse.dem.sparse)."""
 
 import numpy as np
 
@@ -19,7 +19,7 @@ class TestDemSparse:
         return T, R, dt, I
 
     def test_reconstructs_and_nonnegative(self):
-        from egghouse.sdo.dem.sparse import dem_sparse
+        from egghouse.dem.sparse import dem_sparse
 
         T, R, dt, I = self._synthetic()
         dem, info = dem_sparse(I, I * 0.05, R, T)
@@ -31,7 +31,7 @@ class TestDemSparse:
         assert "chi2" in info
 
     def test_peak_near_truth(self):
-        from egghouse.sdo.dem.sparse import dem_sparse
+        from egghouse.dem.sparse import dem_sparse
 
         T, R, dt, I = self._synthetic()
         dem, _ = dem_sparse(I, I * 0.05, R, T)
@@ -40,7 +40,7 @@ class TestDemSparse:
 
     def test_sparsity(self):
         """L1 objective should populate only a few temperature bins."""
-        from egghouse.sdo.dem.sparse import dem_sparse
+        from egghouse.dem.sparse import dem_sparse
 
         T, R, dt, I = self._synthetic()
         dem, _ = dem_sparse(I, I * 0.05, R, T)
@@ -49,7 +49,7 @@ class TestDemSparse:
         assert nnz <= 6
 
     def test_batch_shape(self):
-        from egghouse.sdo.dem.sparse import dem_sparse
+        from egghouse.dem.sparse import dem_sparse
 
         T, R, dt, I = self._synthetic()
         batch = np.repeat(I[None, :], 3, axis=0)
@@ -59,7 +59,7 @@ class TestDemSparse:
         assert info["feasible_map"].shape == (3,)
 
     def test_shape_mismatch_raises(self):
-        from egghouse.sdo.dem.sparse import dem_sparse
+        from egghouse.dem.sparse import dem_sparse
         import pytest
 
         T, R, dt, I = self._synthetic()
@@ -67,7 +67,7 @@ class TestDemSparse:
             dem_sparse(I, I * 0.05, R[:, :3], T)
 
     def test_zero_intensity_pixel(self):
-        from egghouse.sdo.dem.sparse import dem_sparse
+        from egghouse.dem.sparse import dem_sparse
 
         T, R, dt, I = self._synthetic()
         zero = np.zeros_like(I)
@@ -76,7 +76,7 @@ class TestDemSparse:
         assert np.all(dem == 0)
 
     def test_feasibility_info(self):
-        from egghouse.sdo.dem.sparse import dem_sparse
+        from egghouse.dem.sparse import dem_sparse
 
         T, R, dt, I = self._synthetic()
         _, info = dem_sparse(I, I * 0.05, R, T)

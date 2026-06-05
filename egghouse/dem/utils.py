@@ -97,7 +97,7 @@ def dem_map(
     Examples
     --------
     >>> import numpy as np
-    >>> from egghouse.sdo.dem import get_temperature_response, get_default_temperatures
+    >>> from egghouse.dem import get_temperature_response, get_default_temperatures
     >>> temps = get_default_temperatures(n_bins=50)
     >>> response = get_temperature_response(temperatures=temps)
     >>> images = np.random.rand(256, 256, 6).astype(np.float32) * 100

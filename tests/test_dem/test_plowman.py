@@ -27,7 +27,7 @@ def _synthetic(n_bins=21):
 
 class TestDemPlowman:
     def test_reconstructs_intensities_and_nonnegative(self):
-        from egghouse.sdo.dem.plowman import dem_plowman
+        from egghouse.dem.plowman import dem_plowman
 
         T, R, A, true, I = _synthetic()
         dem, info = dem_plowman(I, 0.05 * I, R, T)
@@ -43,7 +43,7 @@ class TestDemPlowman:
         assert "chi2_map" in info and "reg_lambda" in info
 
     def test_peak_temperature_recovered(self):
-        from egghouse.sdo.dem.plowman import dem_plowman
+        from egghouse.dem.plowman import dem_plowman
 
         T, R, A, true, I = _synthetic()
         dem, _ = dem_plowman(I, 0.05 * I, R, T)
@@ -52,7 +52,7 @@ class TestDemPlowman:
         assert abs(peak_logt - 6.2) < 0.2
 
     def test_batch_shape_and_chi2_map(self):
-        from egghouse.sdo.dem.plowman import dem_plowman
+        from egghouse.dem.plowman import dem_plowman
 
         T, R, A, true, I = _synthetic()
         batch = np.repeat(I[None, :], 4, axis=0)
@@ -61,7 +61,7 @@ class TestDemPlowman:
         assert info["chi2_map"].shape == (4,)
 
     def test_explicit_lambda(self):
-        from egghouse.sdo.dem.plowman import dem_plowman
+        from egghouse.dem.plowman import dem_plowman
 
         T, R, A, true, I = _synthetic()
         dem, info = dem_plowman(I, 0.05 * I, R, T, reg_lambda=1.0)
@@ -69,7 +69,7 @@ class TestDemPlowman:
         assert np.all(dem >= 0)
 
     def test_shape_mismatch_raises(self):
-        from egghouse.sdo.dem.plowman import dem_plowman
+        from egghouse.dem.plowman import dem_plowman
 
         T, R, A, true, I = _synthetic()
         wrong = np.zeros((T.size, 4))  # wrong channel count
@@ -77,7 +77,7 @@ class TestDemPlowman:
             dem_plowman(I, 0.05 * I, wrong, T)
 
     def test_calibrate_targets_chi2(self):
-        from egghouse.sdo.dem.plowman import calibrate_lambda, dem_plowman
+        from egghouse.dem.plowman import calibrate_lambda, dem_plowman
 
         T, R, A, true, I = _synthetic()
         batch = np.repeat(I[None, :], 20, axis=0)
@@ -88,7 +88,7 @@ class TestDemPlowman:
 
     def test_batch_speed(self):
         """5000-pixel batch should be fast (single vectorized solve)."""
-        from egghouse.sdo.dem.plowman import dem_plowman
+        from egghouse.dem.plowman import dem_plowman
 
         T, R, A, true, I = _synthetic()
         n = 5000
