@@ -6,6 +6,8 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-06-05
+
 ### Changed — DEM is now a top-level, instrument-agnostic package
 
 **Breaking:** moved `egghouse.sdo.dem` → **`egghouse.dem`**. The DEM
@@ -36,6 +38,18 @@ temperatures)`), so they no longer live under `sdo`.
   contribution functions × a wavelength response (replaces aiapy's removed
   `Channel.temperature_response`). Also fixed the SITES iteration
   (multiplicative MART); the previous additive update was non-physical.
+
+### Added — `egghouse.swdb` sdo best-match read queries
+
+- `get_sdo_best_match` / `get_sdo_best_matches` — promoted from
+  `solaris-data`'s `core/query.py` so they live with the rest of the swdb
+  domain layer and other projects import them instead of duplicating.
+  Re-exported from `egghouse.swdb`.
+
+### Fixed
+
+- `egghouse.sdo`: `get_correction_table` import path updated for **aiapy
+  0.12** (moved to `aiapy.calibrate.utils`).
 
 ## [0.9.0] — 2026-06-04
 
