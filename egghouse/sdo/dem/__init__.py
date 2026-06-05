@@ -37,6 +37,12 @@ from .nnls import (
     dem_nnls,
     calibrate_reg_scale,
 )
+from .sparse import dem_sparse
+from .regularized import dem_regularized
+from .plowman import dem_plowman
+from .mcmc import dem_mcmc
+from .spline import dem_spline
+from .gaussian import dem_gaussian
 from .utils import (
     dem_map,
     compute_dem_errors,
@@ -56,6 +62,13 @@ __all__ = [
     # NNLS algorithm
     "dem_nnls",
     "calibrate_reg_scale",
+    # Additional solvers (each carries its reference in its docstring)
+    "dem_sparse",       # Cheung et al. 2015, ApJ 807, 143
+    "dem_regularized",  # Hannah & Kontar 2012, A&A 539, A146
+    "dem_plowman",      # Plowman et al. 2013, ApJ 771, 2
+    "dem_mcmc",         # Kashyap & Drake 1998, ApJ 503, 450
+    "dem_spline",       # Weber et al. 2004, IAU Symp. 223, 321
+    "dem_gaussian",     # Aschwanden et al. 2013, Sol. Phys. 283, 5
     # Utilities
     "dem_map",
     "compute_dem_errors",
