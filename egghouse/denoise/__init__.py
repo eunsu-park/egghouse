@@ -11,6 +11,9 @@ parametric ``*Denoiser`` class when configuration is needed:
     tv       : Total-variation (Chambolle) denoising.
     wiener   : Wiener filter (scipy.signal.wiener).
     wavelet  : Wavelet (BayesShrink) denoising (scikit-image).
+    noisegate: DeForest (2017) Fourier noise-gating — preserves coherent
+               structure, removes the incoherent noise floor; 2-D images and
+               3-D (t, y, x) sequences (numpy only).
 
 Submodules are imported on demand so that the heavier optional dependencies
 (``bm3d``, ``scikit-image``, ``PyWavelets``) are only required by the modules
