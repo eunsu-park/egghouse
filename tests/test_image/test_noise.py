@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from egghouse.image import gaussian_core_sigma, mad, robust_sigma
+from egghouse.image import (
+    gaussian_core_sigma,
+    mad,
+    photon_transfer_fit,
+    poisson_gaussian_noise,
+    robust_sigma,
+)
 
 
 def test_mad_constant_array_is_zero():
@@ -67,3 +73,37 @@ def test_gaussian_core_sigma_handles_nans():
     x = rng.normal(0.0, 3.0, size=200_000)
     x[:500] = np.nan
     assert abs(gaussian_core_sigma(x) - 3.0) / 3.0 < 0.05
+
+
+def test_photon_transfer_fit_exact_line():
+    intensity = np.array([10.0, 100.0, 1000.0, 5000.0])
+    g_true, r2_true = 0.4, 12.0
+    g, r2, r_sq = photon_transfer_fit(intensity, g_true * intensity + r2_true)
+    assert abs(g - g_true) < 1e-9
+    assert abs(r2 - r2_true) < 1e-6
+    assert r_sq > 0.999999
+
+
+def test_photon_transfer_fit_too_few_points_is_nan():
+    g, r2, r_sq = photon_transfer_fit(np.array([1.0]), np.array([2.0]))
+    assert np.isnan(g) and np.isnan(r2) and np.isnan(r_sq)
+
+
+def test_poisson_gaussian_noise_recovers_parameters():
+    # Synthetic Poisson-Gaussian pair: sigma^2(I) = g*I + r2.
+    rng = np.random.default_rng(6)
+    i0 = rng.uniform(1.0, 8000.0, size=(2400, 2400))
+    g_true, r2_true = 0.45, 25.0
+    sig = np.sqrt(g_true * i0 + r2_true)
+    a = i0 + rng.normal(0.0, 1.0, i0.shape) * sig
+    b = i0 + rng.normal(0.0, 1.0, i0.shape) * sig
+    res = poisson_gaussian_noise(a, b, bins=24, min_count=500)
+    assert abs(res.g - g_true) / g_true < 0.10
+    assert abs(res.r2 - r2_true) / r2_true < 0.40   # intercept is harder
+    assert res.r_squared > 0.95
+
+
+def test_poisson_gaussian_noise_shape_mismatch_raises():
+    import pytest
+    with pytest.raises(ValueError):
+        poisson_gaussian_noise(np.zeros((4, 4)), np.zeros((4, 5)))
