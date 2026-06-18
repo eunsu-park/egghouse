@@ -5,9 +5,9 @@ A personal arsenal of reusable code for solar physics research.
 이 레포지터리는 개인 프로젝트들에서 공통으로 사용하는 유틸리티를 모아둔 라이브러리입니다.
 
 > **Shared common layer.** `egghouse` is the place where functionality common
-> to the sibling projects — **`lolipop`** (low-light denoising research) and
-> **`solaris-data`** (acquisition + DB) — is implemented once and consumed via
-> `import`. New generic primitives (image metrics, denoisers, transforms,
+> to the sibling projects — the **SOLARIS** program (`solaris-data` acquisition + DB,
+> `solaris-denoise` noise-removal models), **`lolipop`** (low-light denoising research),
+> and **`undine`** (DEM) — is implemented once and consumed via `import`. New generic primitives (image metrics, denoisers, transforms,
 > noise-scale estimation, config, DB/transfer helpers) belong here, not
 > duplicated in the consumers. `egghouse.config.BaseConfig` is the standard
 > mechanism those projects use to read paths/params from env/YAML/CLI.
@@ -115,9 +115,16 @@ normalized = crop_or_pad(image, (512, 512))
 from egghouse.image import psnr, ssim, ms_ssim, weak_signal_contrast
 score = psnr(denoised, reference, data_range=4.0)
 
-# Robust noise-scale estimation (MAD-based; outlier-robust)
-from egghouse.image import mad, robust_sigma
-sigma = robust_sigma(frame)               # 1.4826 * MAD
+# Noise-scale estimation
+from egghouse.image import mad, robust_sigma, gaussian_core_sigma
+sigma = robust_sigma(frame)               # 1.4826 * MAD (outlier-robust)
+sigma = gaussian_core_sigma(magnetogram)  # Gaussian fit to the low-field histogram
+                                          # core (Liu 2012 magnetogram-noise method)
+
+# Signal-dependent (Poisson–Gaussian) noise from two same-scene frames, e.g. AIA:
+from egghouse.image import poisson_gaussian_noise, photon_transfer_fit
+fit = poisson_gaussian_noise(frame_a, frame_b)   # σ²(I) = g·I + r²
+g, r2, r_squared = fit.g, fit.r2, fit.r_squared  # VST (generalized Anscombe) params
 
 # Composable numpy transforms
 from egghouse.image import transforms as T
