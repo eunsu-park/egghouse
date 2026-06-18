@@ -77,6 +77,7 @@ from .stats import (
 from .noise import (
     mad,
     robust_sigma,
+    gaussian_core_sigma,
 )
 
 from .metrics import (
@@ -126,6 +127,7 @@ __all__ = [
     # Noise-scale estimation
     'mad',
     'robust_sigma',
+    'gaussian_core_sigma',
     # Image-quality metrics
     'psnr',
     'ssim',
