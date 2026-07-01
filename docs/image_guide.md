@@ -1,94 +1,94 @@
-# egghouse.image 사용 가이드
+# egghouse.image User Guide
 
-범용 이미지 처리 유틸리티. scipy.ndimage 기반으로 dtype을 보존하며 처리.
+General-purpose image processing utilities. Built on scipy.ndimage, preserving dtype during processing.
 
 ---
 
-## 모듈 구조
+## Module Structure
 
 ```
 egghouse/image/
-├── __init__.py   # 모든 함수 export
-├── core.py       # 기본 변환 (resize, rotate, bytescale)
-├── masking.py    # 마스킹 (circle_mask, annulus_mask)
-├── spatial.py    # 공간 변환 (pad, crop_or_pad, flip, roll)
-├── filters.py    # 필터링 (gaussian, median, laplacian, sobel, unsharp)
-├── stats.py      # 통계/분석 (normalize, histogram_eq, percentile_scale, find_center)
-├── metrics.py    # 영상 품질 지표 (psnr, ssim, ms_ssim, weak_signal_contrast) [v0.9+]
-├── transforms.py # composable numpy 변환 (compose, percentile_clip, ...) [v0.9+]
-└── noise.py      # 강건 노이즈 스케일 (mad, robust_sigma) [v0.9+]
+├── __init__.py   # exports all functions
+├── core.py       # basic transforms (resize, rotate, bytescale)
+├── masking.py    # masking (circle_mask, annulus_mask)
+├── spatial.py    # spatial transforms (pad, crop_or_pad, flip, roll)
+├── filters.py    # filtering (gaussian, median, laplacian, sobel, unsharp)
+├── stats.py      # statistics/analysis (normalize, histogram_eq, percentile_scale, find_center)
+├── metrics.py    # image quality metrics (psnr, ssim, ms_ssim, weak_signal_contrast) [v0.9+]
+├── transforms.py # composable numpy transforms (compose, percentile_clip, ...) [v0.9+]
+└── noise.py      # robust noise scale (mad, robust_sigma) [v0.9+]
 ```
 
 ---
 
-## 함수 목록
+## Function List
 
-### Core (기본 변환)
-| 함수 | 설명 | Alias |
+### Core (basic transforms)
+| Function | Description | Alias |
 |------|------|-------|
-| `resize_image` | 이미지 크기 변경 | `resize` |
-| `rotate_image` | 이미지 회전 | `rotate` |
-| `bytescale_image` | uint8로 스케일링 | `bytescale` |
+| `resize_image` | Resize an image | `resize` |
+| `rotate_image` | Rotate an image | `rotate` |
+| `bytescale_image` | Scale to uint8 | `bytescale` |
 
-### Masking (마스킹)
-| 함수 | 설명 |
+### Masking
+| Function | Description |
 |------|------|
-| `circle_mask` | 원형 마스크 생성 |
-| `annulus_mask` | 고리형 마스크 생성 |
+| `circle_mask` | Create a circular mask |
+| `annulus_mask` | Create an annular (ring) mask |
 
-### Spatial (공간 변환)
-| 함수 | 설명 | Alias |
+### Spatial (spatial transforms)
+| Function | Description | Alias |
 |------|------|-------|
-| `pad_image` | 패딩 추가 | `pad` |
-| `crop_or_pad` | 정확한 크기로 조정 | - |
-| `flip_image` | 이미지 뒤집기 | - |
-| `roll_image` | 순환 이동 | - |
-| `bin_ndarray` | 블록 단위 n차원 다운비닝 (v0.5+) | - |
+| `pad_image` | Add padding | `pad` |
+| `crop_or_pad` | Adjust to an exact size | - |
+| `flip_image` | Flip an image | - |
+| `roll_image` | Cyclic shift | - |
+| `bin_ndarray` | Block-wise n-dimensional down-binning (v0.5+) | - |
 
-### Filters (필터링)
-| 함수 | 설명 |
+### Filters (filtering)
+| Function | Description |
 |------|------|
-| `gaussian_smooth` | 가우시안 평활화 |
-| `median_denoise` | 미디언 노이즈 제거 |
-| `laplacian_edge` | 라플라시안 엣지 검출 |
-| `sobel_edge` | 소벨 엣지 검출 |
-| `unsharp_mask` | 언샵 마스크 샤프닝 |
+| `gaussian_smooth` | Gaussian smoothing |
+| `median_denoise` | Median noise removal |
+| `laplacian_edge` | Laplacian edge detection |
+| `sobel_edge` | Sobel edge detection |
+| `unsharp_mask` | Unsharp mask sharpening |
 
-### Stats (통계/분석)
-| 함수 | 설명 |
+### Stats (statistics/analysis)
+| Function | Description |
 |------|------|
-| `normalize_image` | z-score 정규화 |
-| `get_image_stats` | 이미지 통계 계산 |
-| `histogram_equalization` | 히스토그램 균등화 |
-| `percentile_scale` | percentile 기반 스케일링 |
-| `find_disk_center` | 디스크 중심 찾기 |
-| `adaptive_threshold` | 적응형 이진화 |
+| `normalize_image` | z-score normalization |
+| `get_image_stats` | Compute image statistics |
+| `histogram_equalization` | Histogram equalization |
+| `percentile_scale` | percentile-based scaling |
+| `find_disk_center` | Find the disk center |
+| `adaptive_threshold` | Adaptive thresholding |
 
-### Metrics (영상 품질 지표, v0.9+)
-| 함수 | 설명 |
+### Metrics (image quality metrics, v0.9+)
+| Function | Description |
 |------|------|
-| `psnr` | Peak SNR (dB); 동일 영상이면 `+inf` |
-| `ssim` | 단일 스케일 SSIM (Wang 2004) |
-| `ms_ssim` | 다중 스케일 SSIM (Wang 2003, 5-scale) |
-| `weak_signal_contrast` | Sobel gradient 상관 (약한 엣지 보존, 플레이스홀더) |
+| `psnr` | Peak SNR (dB); `+inf` for identical images |
+| `ssim` | Single-scale SSIM (Wang 2004) |
+| `ms_ssim` | Multi-scale SSIM (Wang 2003, 5-scale) |
+| `weak_signal_contrast` | Sobel gradient correlation (weak-edge preservation, placeholder) |
 
 ```python
 from egghouse.image import psnr, ssim, ms_ssim
 score = psnr(denoised, reference, data_range=4.0)
 ```
 
-### Transforms (composable 변환, v0.9+)
-`compose([...])`로 체인. 각 함수는 numpy 배열 → numpy 배열.
+### Transforms (composable transforms, v0.9+)
+Chain with `compose([...])`. Each function maps a numpy array to a numpy array.
 
-| 함수 | 설명 |
+| Function | Description |
 |------|------|
-| `compose` | 변환들을 좌→우로 연결 |
-| `to_float32` | native float32 캐스트 (값 변경 없음) |
-| `nan_to_value` | NaN/Inf를 지정값으로 치환 |
-| `percentile_clip` | 프레임별 percentile 범위로 클립 |
-| `normalize_minmax` | 프레임별 [0,1] 스케일 |
-| `normalize_log1p` | `log1p(scale*(x-min))` 동적범위 압축 |
-| `circular_mask` | 중심 원 내부/외부 채우기 |
+| `compose` | Chain transforms left-to-right |
+| `to_float32` | Native float32 cast (no value change) |
+| `nan_to_value` | Replace NaN/Inf with a given value |
+| `percentile_clip` | Clip to a per-frame percentile range |
+| `normalize_minmax` | Per-frame [0,1] scaling |
+| `normalize_log1p` | `log1p(scale*(x-min))` dynamic-range compression |
+| `circular_mask` | Fill inside/outside of a center circle |
 
 ```python
 from egghouse.image import transforms as T
@@ -96,159 +96,159 @@ pipe = T.compose([T.to_float32, T.percentile_clip(0.5, 99.5), T.normalize_minmax
 out = pipe(frame)
 ```
 
-### Noise (강건 노이즈 스케일, v0.9+)
-| 함수 | 설명 |
+### Noise (robust noise scale, v0.9+)
+| Function | Description |
 |------|------|
-| `mad` | 중앙값 기준 median absolute deviation |
-| `robust_sigma` | 강건 σ 추정 `1.4826 * MAD` (outlier에 강건) |
+| `mad` | Median absolute deviation about the median |
+| `robust_sigma` | Robust σ estimate `1.4826 * MAD` (robust to outliers) |
 
 ```python
 from egghouse.image import robust_sigma
-sigma = robust_sigma(frame)   # hot-pixel/transient에 끌리지 않음
+sigma = robust_sigma(frame)   # not pulled by hot pixels/transients
 ```
 
 ---
 
-## Core 함수
+## Core Functions
 
 ### resize_image
 
-이미지 크기를 변경. dtype을 보존.
+Resize an image. Preserves dtype.
 
 ```python
 from egghouse.image import resize_image
 
-# 기본 사용 (bilinear 보간)
+# Basic usage (bilinear interpolation)
 resized = resize_image(image, (512, 512))
 
-# 보간 방법 선택
+# Choose the interpolation method
 resized = resize_image(image, (256, 256), order=0)  # nearest
-resized = resize_image(image, (256, 256), order=1)  # bilinear (기본)
+resized = resize_image(image, (256, 256), order=1)  # bilinear (default)
 resized = resize_image(image, (256, 256), order=3)  # bicubic
 
-# 3D 이미지 (H, W, C) 지원
+# 3D image (H, W, C) support
 rgb_resized = resize_image(rgb_image, (256, 256))
 ```
 
-**order 값:**
-- 0: nearest-neighbor (가장 빠름, 계단 현상)
-- 1: bilinear (기본값, 균형)
+**order values:**
+- 0: nearest-neighbor (fastest, staircase artifacts)
+- 1: bilinear (default, balanced)
 - 2: bi-quadratic
-- 3: bi-cubic (가장 부드러움, 느림)
+- 3: bi-cubic (smoothest, slow)
 
 ---
 
 ### rotate_image
 
-이미지를 회전. 양수 각도는 반시계 방향.
+Rotate an image. Positive angles are counter-clockwise.
 
 ```python
 from egghouse.image import rotate_image
 
-# 기본 회전 (원본 크기 유지)
+# Basic rotation (keeps original size)
 rotated = rotate_image(image, angle=45)
 
-# 전체 이미지가 보이도록 캔버스 확장
+# Expand the canvas so the whole image is visible
 rotated = rotate_image(image, angle=45, reshape=True)
 
-# 빈 영역 채우기 값 지정
+# Specify the fill value for empty areas
 rotated = rotate_image(image, angle=30, cval=np.nan)
 ```
 
-**파라미터:**
-- `angle`: 회전 각도 (도 단위)
-- `reshape`: True면 전체 이미지가 보이도록 출력 크기 조정
-- `cval`: 경계 밖 영역 채우기 값
+**Parameters:**
+- `angle`: rotation angle (in degrees)
+- `reshape`: if True, resizes the output so the whole image is visible
+- `cval`: fill value for out-of-bounds areas
 
 ---
 
 ### bytescale_image
 
-데이터를 uint8 범위 [0, 255]로 스케일링. 시각화용.
+Scale data to the uint8 range [0, 255]. For visualization.
 
 ```python
 from egghouse.image import bytescale_image
 
-# 자동 범위 감지
+# Automatic range detection
 display = bytescale_image(data)
 
-# 범위 지정
+# Specify the range
 display = bytescale_image(data, imin=0, imax=5000)
 
-# percentile 기반 contrast stretch
+# percentile-based contrast stretch
 p1, p99 = np.percentile(data, [1, 99])
 display = bytescale_image(data, imin=p1, imax=p99)
 
-# 출력 범위 변경
-display = bytescale_image(data, omin=10, omax=245)  # 여백 확보
+# Change the output range
+display = bytescale_image(data, omin=10, omax=245)  # reserve margins
 ```
 
 ---
 
-## Masking 함수
+## Masking Functions
 
 ### circle_mask
 
-원형 boolean 마스크 생성. 태양 디스크 마스킹에 유용.
+Create a circular boolean mask. Useful for masking the solar disk.
 
 ```python
 from egghouse.image import circle_mask
 
-# 태양 디스크 마스크 (4096x4096, 반경 1600 픽셀)
+# Solar disk mask (4096x4096, radius 1600 pixels)
 disk_mask = circle_mask(4096, radius=1600)
 
-# 디스크 내부만 추출
+# Extract only the disk interior
 masked = np.where(disk_mask, image, 0)
 
-# 디스크 외부 마스크 (코로나 분석용)
+# Mask outside the disk (for corona analysis)
 corona_mask = circle_mask(4096, radius=1600, mask_type='outer')
 
-# 사각형 이미지, 중심 지정
+# Rectangular image, with a specified center
 mask = circle_mask((512, 1024), radius=200, center=(256, 600))
 ```
 
 **mask_type:**
-- `'inner'`: 원 내부가 True (기본값)
-- `'outer'`: 원 외부가 True
+- `'inner'`: interior of the circle is True (default)
+- `'outer'`: exterior of the circle is True
 
 ---
 
 ### annulus_mask
 
-고리형 마스크 생성. 특정 반경 범위 분석용.
+Create an annular (ring) mask. For analyzing a specific radius range.
 
 ```python
 from egghouse.image import annulus_mask
 
-# 1.0 ~ 1.3 태양 반경 영역
+# Region between 1.0 and 1.3 solar radii
 solar_radius = 1600
 corona_ring = annulus_mask(4096,
                            inner_radius=solar_radius,
                            outer_radius=solar_radius * 1.3)
 
-# 마스크 적용
+# Apply the mask
 corona_data = image[corona_ring]
 mean_intensity = corona_data.mean()
 ```
 
 ---
 
-## Spatial 함수
+## Spatial Functions
 
 ### pad_image
 
-이미지에 패딩 추가.
+Add padding to an image.
 
 ```python
 from egghouse.image import pad_image
 
-# 중앙 정렬 패딩 (기본)
+# Center-aligned padding (default)
 padded = pad_image(image, (1024, 1024), pad_value=0)
 
-# 좌상단 정렬
+# Top-left aligned
 padded = pad_image(image, (1024, 1024), center=False)
 
-# NaN으로 패딩 (off-disk 영역)
+# Pad with NaN (off-disk areas)
 padded = pad_image(image, (5000, 5000), pad_value=np.nan)
 ```
 
@@ -256,57 +256,57 @@ padded = pad_image(image, (5000, 5000), pad_value=np.nan)
 
 ### crop_or_pad
 
-크기에 맞게 자동으로 crop 또는 pad.
+Automatically crop or pad to fit a size.
 
 ```python
 from egghouse.image import crop_or_pad
 
-# 다양한 크기의 이미지를 동일하게 맞춤
-img1 = np.random.rand(400, 600)   # 작은 이미지 → pad
-img2 = np.random.rand(800, 500)   # 큰 이미지 → crop
+# Fit images of varying sizes to the same size
+img1 = np.random.rand(400, 600)   # small image → pad
+img2 = np.random.rand(800, 500)   # large image → crop
 
 normalized1 = crop_or_pad(img1, (512, 512))
 normalized2 = crop_or_pad(img2, (512, 512))
-# 둘 다 (512, 512) 크기
+# both are (512, 512)
 ```
 
 ---
 
 ### flip_image
 
-이미지 뒤집기.
+Flip an image.
 
 ```python
 from egghouse.image import flip_image
 
-# 상하 반전 (기본)
+# Vertical flip (default)
 flipped = flip_image(image, axis='vertical')
 
-# 좌우 반전
+# Horizontal flip
 flipped = flip_image(image, axis='horizontal')
 
-# 180도 회전 (양쪽 반전)
+# 180-degree rotation (flip both)
 flipped = flip_image(image, axis='both')
 ```
 
 **axis:**
-- `'vertical'`: 상하 반전 (기본값)
-- `'horizontal'`: 좌우 반전
-- `'both'`: 둘 다 (180도 회전)
+- `'vertical'`: vertical flip (default)
+- `'horizontal'`: horizontal flip
+- `'both'`: both (180-degree rotation)
 
 ---
 
 ### roll_image
 
-순환 이동 (cyclic shift). 경계를 넘는 픽셀이 반대편에 나타남.
+Cyclic shift. Pixels crossing a boundary reappear on the opposite side.
 
 ```python
 from egghouse.image import roll_image
 
-# 아래로 10픽셀, 오른쪽으로 5픽셀 이동
+# Shift down 10 pixels, right 5 pixels
 rolled = roll_image(image, shift_y=10, shift_x=5)
 
-# 이미지 정렬에 활용
+# Use for image alignment
 for i, img in enumerate(images):
     aligned = roll_image(img, shift_y=0, shift_x=shifts[i])
 ```
@@ -317,55 +317,57 @@ for i, img in enumerate(images):
 
 `bin_ndarray(array, new_shape, operation='sum')` (v0.5+)
 
-블록 단위 n차원 다운비닝. 배열을 `(n0, b0, n1, b1, ...)` 형태로
-reshape한 뒤 각 블록을 합산(`'sum'`) 또는 평균(`'mean'`)으로 축약함
-(겹침 없음). `new_shape`는 입력과 차원 수가 같아야 하며, 각 출력
-차원은 대응하는 입력 차원을 정확히 나누어 떨어지게 해야 함.
+Block-wise n-dimensional down-binning. Reshapes the array into
+`(n0, b0, n1, b1, ...)` form and then reduces each block by summation
+(`'sum'`) or averaging (`'mean'`) (no overlap). `new_shape` must have the
+same number of dimensions as the input, and each output dimension must
+divide the corresponding input dimension exactly.
 
-매개변수:
+Parameters:
 
-- `array`: 입력 n차원 배열.
-- `new_shape`: 목표 shape (tuple). `array.ndim`과 길이가 같아야 하고,
-  각 원소는 `array.shape[i]`를 나누어 떨어뜨려야 함.
-- `operation`: `'sum'`(기본값) 또는 `'mean'`. 블록 내 축약 방식.
+- `array`: input n-dimensional array.
+- `new_shape`: target shape (tuple). Must have the same length as
+  `array.ndim`, and each element must divide `array.shape[i]` exactly.
+- `operation`: `'sum'` (default) or `'mean'`. The block reduction method.
 
-`operation`이 `'sum'`/`'mean'`이 아니거나, 차원 수가 맞지 않거나,
-나누어 떨어지지 않는 차원이 있으면 `ValueError`를 발생시킴.
+Raises `ValueError` if `operation` is neither `'sum'` nor `'mean'`, if the
+number of dimensions does not match, or if any dimension does not divide
+evenly.
 
 ```python
 import numpy as np
 from egghouse.image import bin_ndarray
 
-# 4096x4096 태양 이미지를 1024x1024로 다운비닝 (4x4 블록)
+# Down-bin a 4096x4096 solar image to 1024x1024 (4x4 blocks)
 solar = np.random.rand(4096, 4096)
 
-# 블록 합산: 광자 수 등 가산량 보존
+# Block sum: preserves additive quantities such as photon counts
 binned_sum = bin_ndarray(solar, (1024, 1024), operation='sum')
 print(binned_sum.shape)  # (1024, 1024)
 
-# 블록 평균: 강도/밝기 스케일 유지
+# Block mean: keeps intensity/brightness scale
 binned_mean = bin_ndarray(solar, (1024, 1024), operation='mean')
 print(binned_mean.shape)  # (1024, 1024)
 ```
 
 ---
 
-## Filters 함수
+## Filters Functions
 
 ### gaussian_smooth
 
-가우시안 필터로 노이즈 감소. 자연스러운 평활화.
+Reduce noise with a Gaussian filter. Natural smoothing.
 
 ```python
 from egghouse.image import gaussian_smooth
 
-# 기본 평활화 (sigma=1.0)
+# Basic smoothing (sigma=1.0)
 smoothed = gaussian_smooth(image, sigma=1.5)
 
-# 축별 다른 sigma
+# Different sigma per axis
 smoothed = gaussian_smooth(image, sigma=(2.0, 1.0))
 
-# dtype 보존하지 않기
+# Do not preserve dtype
 smoothed = gaussian_smooth(image, sigma=1.0, preserve_range=False)
 ```
 
@@ -373,18 +375,18 @@ smoothed = gaussian_smooth(image, sigma=1.0, preserve_range=False)
 
 ### median_denoise
 
-미디언 필터로 노이즈 제거. 엣지 보존에 우수. salt-and-pepper 노이즈, cosmic ray 제거에 효과적.
+Remove noise with a median filter. Excellent at preserving edges. Effective for salt-and-pepper noise and cosmic ray removal.
 
 ```python
 from egghouse.image import median_denoise
 
-# 기본 (3x3 윈도우)
+# Default (3x3 window)
 denoised = median_denoise(image, size=3)
 
-# 더 강한 노이즈용
+# For stronger noise
 denoised = median_denoise(noisy_image, size=5)
 
-# 비정방 윈도우
+# Non-square window
 denoised = median_denoise(image, size=(3, 5))
 ```
 
@@ -392,15 +394,15 @@ denoised = median_denoise(image, size=(3, 5))
 
 ### laplacian_edge
 
-라플라시안 엣지 검출. 2차 미분으로 급격한 변화 감지.
+Laplacian edge detection. Detects abrupt changes via the second derivative.
 
 ```python
 from egghouse.image import laplacian_edge
 
-# 기본 엣지 검출
+# Basic edge detection
 edges = laplacian_edge(image)
 
-# 가우시안 전처리 후 적용 (LoG)
+# Apply after Gaussian pre-processing (LoG)
 smoothed = gaussian_smooth(image, sigma=1.0)
 edges = laplacian_edge(smoothed)
 ```
@@ -409,18 +411,18 @@ edges = laplacian_edge(smoothed)
 
 ### sobel_edge
 
-소벨 엣지 검출. 1차 미분(그래디언트) 기반.
+Sobel edge detection. Based on the first derivative (gradient).
 
 ```python
 from egghouse.image import sobel_edge
 
-# 그래디언트 크기 (모든 엣지)
+# Gradient magnitude (all edges)
 edges = sobel_edge(image)
 
-# 수직 엣지만 (y 방향 그래디언트)
+# Vertical edges only (gradient in the y direction)
 edges_y = sobel_edge(image, axis=0)
 
-# 수평 엣지만 (x 방향 그래디언트)
+# Horizontal edges only (gradient in the x direction)
 edges_x = sobel_edge(image, axis=1)
 ```
 
@@ -428,38 +430,38 @@ edges_x = sobel_edge(image, axis=1)
 
 ### unsharp_mask
 
-언샵 마스크 샤프닝. 블러 이미지를 빼서 엣지 강조.
+Unsharp mask sharpening. Subtracts a blurred image to emphasize edges.
 
 ```python
 from egghouse.image import unsharp_mask
 
-# 기본 샤프닝
+# Basic sharpening
 sharp = unsharp_mask(image, sigma=1.0, amount=1.0)
 
-# 더 강한 샤프닝
+# Stronger sharpening
 sharp = unsharp_mask(image, sigma=2.0, amount=2.0)
 ```
 
-**파라미터:**
-- `sigma`: 블러 강도. 높을수록 넓은 엣지 강조
-- `amount`: 샤프닝 강도. 1.0 이상이면 더 강하게
+**Parameters:**
+- `sigma`: blur strength. Higher values emphasize wider edges
+- `amount`: sharpening strength. Values above 1.0 are stronger
 
 ---
 
-## Stats 함수
+## Stats Functions
 
 ### normalize_image
 
-z-score 정규화. 평균 0, 표준편차 1로 변환.
+z-score normalization. Transforms to mean 0, standard deviation 1.
 
 ```python
 from egghouse.image import normalize_image
 
-# 자동 계산
+# Automatic computation
 normalized = normalize_image(image)
 # mean ≈ 0, std ≈ 1
 
-# 사전 계산된 통계 사용 (학습 세트 기준)
+# Use pre-computed statistics (based on the training set)
 normalized = normalize_image(image, mean=127.5, std=64.0)
 ```
 
@@ -467,43 +469,43 @@ normalized = normalize_image(image, mean=127.5, std=64.0)
 
 ### get_image_stats
 
-이미지 통계 계산. 마스크 지원.
+Compute image statistics. Supports masks.
 
 ```python
 from egghouse.image import get_image_stats
 
-# 전체 이미지 통계
+# Whole-image statistics
 stats = get_image_stats(image)
 print(f"Mean: {stats['mean']:.2f}")
 print(f"Std: {stats['std']:.2f}")
 print(f"Min: {stats['min']}, Max: {stats['max']}")
 print(f"p1={stats['p1']}, p99={stats['p99']}")
 
-# 태양 디스크 내부만
+# Solar disk interior only
 disk_mask = circle_mask(4096, radius=1600)
 stats = get_image_stats(image, mask=disk_mask)
 
-# 커스텀 percentiles
+# Custom percentiles
 stats = get_image_stats(image, percentiles=(5, 50, 95))
 ```
 
-**반환값:**
+**Returns:**
 - `mean`, `std`, `min`, `max`, `median`, `count`
-- `p1`, `p5`, `p25`, `p50`, `p75`, `p95`, `p99` (또는 커스텀)
+- `p1`, `p5`, `p25`, `p50`, `p75`, `p95`, `p99` (or custom)
 
 ---
 
 ### histogram_equalization
 
-히스토그램 균등화. 좁은 명암 분포를 균일하게.
+Histogram equalization. Makes a narrow intensity distribution uniform.
 
 ```python
 from egghouse.image import histogram_equalization
 
-# 저대비 이미지 개선
+# Improve a low-contrast image
 enhanced = histogram_equalization(image)
 
-# 비교 시각화
+# Comparison visualization
 import matplotlib.pyplot as plt
 fig, (ax1, ax2) = plt.subplots(1, 2)
 ax1.imshow(image, cmap='gray')
@@ -516,139 +518,139 @@ ax2.set_title('Equalized')
 
 ### percentile_scale
 
-percentile 기반 스케일링. outlier에 강인함.
+percentile-based scaling. Robust to outliers.
 
 ```python
 from egghouse.image import percentile_scale
 
-# 기본 (1%, 99%)
+# Default (1%, 99%)
 scaled = percentile_scale(image)
 
-# 더 공격적인 클리핑
+# More aggressive clipping
 scaled = percentile_scale(image, low_percentile=5, high_percentile=95)
 
-# 커스텀 출력 범위
+# Custom output range
 scaled = percentile_scale(image, omin=10, omax=245)
 ```
 
-bytescale_image와 유사하지만, 자동으로 percentile 기반 범위 사용.
+Similar to bytescale_image, but automatically uses a percentile-based range.
 
 ---
 
 ### find_disk_center
 
-밝은 디스크(태양 등)의 중심 좌표 찾기.
+Find the center coordinates of a bright disk (e.g. the Sun).
 
 ```python
 from egghouse.image import find_disk_center
 
-# 태양 디스크 중심 찾기
+# Find the solar disk center
 cy, cx = find_disk_center(aia_image)
 print(f"Center: ({cy:.1f}, {cx:.1f})")
 
-# 커스텀 threshold
+# Custom threshold
 cy, cx = find_disk_center(image, threshold=100)
 
-# 기하학적 중심 (intensity 무시)
+# Geometric center (ignore intensity)
 cy, cx = find_disk_center(image, method='geometric')
 
-# 찾은 중심으로 마스크 생성
+# Create a mask from the found center
 mask = circle_mask(image.shape, radius=1600, center=(cy, cx))
 ```
 
 **method:**
-- `'centroid'`: 밝기 가중 중심 (기본값)
-- `'geometric'`: 기하학적 중심
+- `'centroid'`: brightness-weighted center (default)
+- `'geometric'`: geometric center
 
 ---
 
 ### adaptive_threshold
 
-적응형 이진화. 불균일한 조명 처리.
+Adaptive thresholding. Handles non-uniform illumination.
 
 ```python
 from egghouse.image import adaptive_threshold
 
-# 기본 적응형 threshold
+# Basic adaptive threshold
 binary = adaptive_threshold(image)
 
-# 더 민감하게 (더 많은 foreground)
+# More sensitive (more foreground)
 binary = adaptive_threshold(image, offset=-5)
 
-# 더 작은 블록 (세부 사항 보존)
+# Smaller blocks (preserve detail)
 binary = adaptive_threshold(image, block_size=15)
 ```
 
-**파라미터:**
-- `block_size`: 로컬 평균 계산 윈도우 크기 (홀수)
-- `offset`: 평균에서 뺄 값. 양수면 foreground 감소
+**Parameters:**
+- `block_size`: window size for the local mean computation (odd)
+- `offset`: value subtracted from the mean. Positive values reduce foreground
 
 ---
 
-## 워크플로우 예시
+## Workflow Examples
 
-### 태양 이미지 처리
+### Solar Image Processing
 
 ```python
-from astropy.io import fits  # egghouse.io는 v0.6.0에서 제거됨
+from astropy.io import fits  # egghouse.io was removed in v0.6.0
 from egghouse.image import (
     resize_image, circle_mask, bytescale_image, crop_or_pad,
     gaussian_smooth, find_disk_center, get_image_stats
 )
 
-# 1. FITS 파일 읽기
+# 1. Read the FITS file
 data, header = fits.getdata('aia_171.fits', header=True)
 
-# 2. 크기 정규화
+# 2. Normalize the size
 data = crop_or_pad(data, (4096, 4096))
 
-# 3. 디스크 중심 찾기 및 마스크 적용
+# 3. Find the disk center and apply a mask
 cy, cx = find_disk_center(data)
 disk_mask = circle_mask(4096, radius=1600, center=(cy, cx))
 data = np.where(disk_mask, data, 0)
 
-# 4. 통계 확인
+# 4. Check statistics
 stats = get_image_stats(data, mask=disk_mask)
 print(f"Disk mean: {stats['mean']:.1f}")
 
-# 5. 노이즈 제거
+# 5. Denoise
 data = gaussian_smooth(data, sigma=1.0)
 
-# 6. 리사이즈 (ML 입력용)
+# 6. Resize (for ML input)
 resized = resize_image(data, (512, 512), order=1)
 
-# 7. 시각화용 스케일링
+# 7. Scale for visualization
 display = bytescale_image(resized, imin=0, imax=5000)
 ```
 
-### 엣지 검출
+### Edge Detection
 
 ```python
 from egghouse.image import gaussian_smooth, sobel_edge, laplacian_edge
 
-# 노이즈 제거 후 엣지 검출
+# Detect edges after denoising
 smoothed = gaussian_smooth(image, sigma=1.5)
 
-# 소벨: 그래디언트 크기
+# Sobel: gradient magnitude
 edges_sobel = sobel_edge(smoothed)
 
-# 라플라시안: 2차 미분
+# Laplacian: second derivative
 edges_laplacian = laplacian_edge(smoothed)
 ```
 
 ---
 
-## dtype 보존
+## dtype Preservation
 
-모든 함수는 `preserve_range=True`(기본값)로 원본 dtype을 보존:
+All functions preserve the original dtype with `preserve_range=True` (default):
 
 ```python
 import numpy as np
 
-# uint16 입력
+# uint16 input
 img_uint16 = np.random.randint(0, 65535, (100, 100), dtype=np.uint16)
 
-# 처리 후에도 uint16 유지
+# Stays uint16 after processing
 resized = resize_image(img_uint16, (50, 50))
 print(resized.dtype)  # uint16
 
@@ -656,7 +658,7 @@ smoothed = gaussian_smooth(img_uint16, sigma=1.0)
 print(smoothed.dtype)  # uint16
 ```
 
-`preserve_range=False`로 설정하면 float64로 반환:
+Setting `preserve_range=False` returns float64:
 
 ```python
 resized = resize_image(img_uint16, (50, 50), preserve_range=False)
@@ -665,9 +667,9 @@ print(resized.dtype)  # float64
 
 ---
 
-## 의존성
+## Dependencies
 
 - numpy
 - scipy (ndimage)
 
-설치: `pip install numpy scipy`
+Install: `pip install numpy scipy`

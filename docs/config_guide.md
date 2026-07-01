@@ -1,22 +1,22 @@
-# egghouse.config 사용 가이드
+# egghouse.config Usage Guide
 
-ML/DL 프로젝트를 위한 설정 관리 유틸리티.
-
----
-
-## 개요
-
-BaseConfig는 dataclass 기반의 설정 관리 클래스로 다양한 소스에서 설정을 로드할 수 있습니다:
-- YAML 파일
-- JSON 파일
-- 환경 변수
-- CLI 인자
+A configuration management utility for ML/DL projects.
 
 ---
 
-## 기본 사용법
+## Overview
 
-### 설정 클래스 정의
+BaseConfig is a dataclass-based configuration management class that can load settings from various sources:
+- YAML files
+- JSON files
+- Environment variables
+- CLI arguments
+
+---
+
+## Basic Usage
+
+### Defining a Config Class
 
 ```python
 from dataclasses import dataclass
@@ -25,7 +25,7 @@ from egghouse.config import BaseConfig
 
 @dataclass
 class TrainConfig(BaseConfig):
-    """학습 설정"""
+    """Training config"""
     lr: float = 0.001
     epochs: int = 100
     batch_size: int = 32
@@ -34,7 +34,7 @@ class TrainConfig(BaseConfig):
     checkpoint_path: Optional[str] = None
 ```
 
-### 기본값으로 생성
+### Creating with Default Values
 
 ```python
 config = TrainConfig()
@@ -44,9 +44,9 @@ print(config.epochs)    # 100
 
 ---
 
-## YAML 파일
+## YAML Files
 
-### 로드 (from_yaml)
+### Loading (from_yaml)
 
 ```yaml
 # config.yaml
@@ -63,14 +63,14 @@ config = TrainConfig.from_yaml('config.yaml')
 print(config.lr)  # 0.0001
 ```
 
-### 저장 (to_yaml)
+### Saving (to_yaml)
 
 ```python
 config = TrainConfig(lr=0.0005, epochs=150)
 config.to_yaml('output_config.yaml')
 ```
 
-생성된 파일:
+Generated file:
 ```yaml
 lr: 0.0005
 epochs: 150
@@ -82,9 +82,9 @@ checkpoint_path: null
 
 ---
 
-## JSON 파일
+## JSON Files
 
-### 로드 (from_json)
+### Loading (from_json)
 
 ```json
 {
@@ -99,7 +99,7 @@ checkpoint_path: null
 config = TrainConfig.from_json('config.json')
 ```
 
-### 저장 (to_json)
+### Saving (to_json)
 
 ```python
 config = TrainConfig(lr=0.0005)
@@ -108,11 +108,11 @@ config.to_json('output_config.json', indent=4)
 
 ---
 
-## 환경 변수
+## Environment Variables
 
-### 로드 (from_env)
+### Loading (from_env)
 
-환경 변수 이름: `PREFIX` + `FIELD_NAME` (대문자)
+Environment variable name: `PREFIX` + `FIELD_NAME` (uppercase)
 
 ```bash
 export TRAIN_LR=0.0001
@@ -128,35 +128,35 @@ print(config.epochs)     # 200
 print(config.use_amp)    # True
 ```
 
-### 타입 변환
+### Type Conversion
 
-환경 변수는 문자열이지만 필드 타입에 맞게 자동 변환됩니다:
+Environment variables are strings, but they are automatically converted to match the field type:
 
-| 타입 | 변환 규칙 |
+| Type | Conversion rule |
 |------|----------|
 | `int` | `int(value)` |
 | `float` | `float(value)` |
 | `bool` | `true`, `1`, `yes`, `on` → True |
-| `str` | 그대로 사용 |
-| `Optional[T]` | T 타입으로 변환 |
+| `str` | Used as-is |
+| `Optional[T]` | Converted to type T |
 
 ---
 
-## CLI 인자
+## CLI Arguments
 
-### 로드 (from_args)
+### Loading (from_args)
 
 ```bash
-# 기본값 사용
+# Use default values
 python train.py
 
-# CLI로 값 오버라이드
+# Override values via CLI
 python train.py --lr 0.0001 --epochs 200
 
-# YAML 베이스 + CLI 오버라이드
+# YAML base + CLI override
 python train.py --config base.yaml --lr 0.0001
 
-# JSON 베이스 + CLI 오버라이드
+# JSON base + CLI override
 python train.py --config base.json --epochs 300
 ```
 
@@ -175,17 +175,17 @@ if __name__ == '__main__':
     print(config)
 ```
 
-### Boolean 필드
+### Boolean Fields
 
 ```bash
-# True로 설정
+# Set to True
 python train.py --use_amp
 
-# False로 설정
+# Set to False
 python train.py --no-use_amp
 ```
 
-### 자동 생성되는 --help
+### Auto-generated --help
 
 ```bash
 python train.py --help
@@ -196,7 +196,7 @@ usage: train.py [-h] [--config CONFIG] [--lr LR] [--epochs EPOCHS]
                 [--batch_size BATCH_SIZE] [--model_name MODEL_NAME]
                 [--use_amp] [--no-use_amp]
 
-학습 설정
+Training config
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -211,25 +211,25 @@ optional arguments:
 
 ---
 
-## 우선순위
+## Priority
 
-`from_args()`를 사용할 때:
+When using `from_args()`:
 
-1. **CLI 인자** (최우선)
-2. **--config 파일** (YAML/JSON)
-3. **dataclass 기본값** (최하위)
+1. **CLI arguments** (highest priority)
+2. **--config file** (YAML/JSON)
+3. **dataclass default values** (lowest priority)
 
 ```bash
-# base.yaml에 lr=0.001, CLI에 lr=0.0001 지정
+# base.yaml specifies lr=0.001, CLI specifies lr=0.0001
 python train.py --config base.yaml --lr 0.0001
-# → config.lr == 0.0001 (CLI 우선)
+# → config.lr == 0.0001 (CLI takes priority)
 ```
 
 ---
 
-## 중첩 설정
+## Nested Configuration
 
-복잡한 설정을 위한 중첩 dataclass:
+Nested dataclasses for complex configurations:
 
 ```python
 from dataclasses import dataclass, field
@@ -256,7 +256,7 @@ class TrainConfig(BaseConfig):
     epochs: int = 100
 ```
 
-YAML 파일:
+YAML file:
 ```yaml
 optimizer:
   name: sgd
@@ -268,13 +268,13 @@ data:
 epochs: 200
 ```
 
-**주의**: 중첩 dataclass는 YAML/JSON에서만 동작하며, CLI와 환경 변수에서는 평면 구조만 지원됩니다.
+**Note**: Nested dataclasses only work with YAML/JSON; CLI and environment variables only support a flat structure.
 
 ---
 
-## 실전 예시
+## Practical Examples
 
-### ML 학습 스크립트
+### ML Training Script
 
 ```python
 # train.py
@@ -308,30 +308,30 @@ def main():
     config = Config.from_args()
     print(config)
 
-    # 설정 저장 (재현성)
+    # Save config (reproducibility)
     config.to_yaml(f'runs/{config.model}_config.yaml')
 
-    # 학습 로직...
+    # Training logic...
 
 if __name__ == '__main__':
     main()
 ```
 
-실행:
+Run:
 ```bash
-# 기본 설정
+# Default settings
 python train.py
 
-# 커스텀 설정 파일 + 오버라이드
+# Custom config file + override
 python train.py --config experiments/exp1.yaml --lr 0.0001 --epochs 200
 
-# 환경 변수 사용 (예: Docker)
+# Using environment variables (e.g. Docker)
 export CONFIG_LR=0.0001
 export CONFIG_EPOCHS=200
-python train.py  # from_env() 사용 시
+python train.py  # when using from_env()
 ```
 
-### 설정 검증
+### Config Validation
 
 ```python
 from dataclasses import dataclass, field
@@ -343,7 +343,7 @@ class Config(BaseConfig):
     epochs: int = 100
 
     def __post_init__(self):
-        """설정 로드 후 검증"""
+        """Validate after loading config"""
         if self.lr <= 0:
             raise ValueError(f"lr must be positive, got {self.lr}")
         if self.epochs <= 0:
@@ -352,36 +352,36 @@ class Config(BaseConfig):
 
 ---
 
-## API 요약
+## API Summary
 
-### BaseConfig 클래스 메서드
+### BaseConfig Class Methods
 
-| 메서드 | 설명 |
+| Method | Description |
 |--------|------|
-| `from_yaml(path)` | YAML 파일에서 로드 |
-| `from_json(path)` | JSON 파일에서 로드 |
-| `from_env(prefix="")` | 환경 변수에서 로드 |
-| `from_args(args=None)` | CLI 인자에서 로드 |
-| `to_yaml(path)` | YAML 파일로 저장 |
-| `to_json(path, indent=2)` | JSON 파일로 저장 |
+| `from_yaml(path)` | Load from a YAML file |
+| `from_json(path)` | Load from a JSON file |
+| `from_env(prefix="")` | Load from environment variables |
+| `from_args(args=None)` | Load from CLI arguments |
+| `to_yaml(path)` | Save to a YAML file |
+| `to_json(path, indent=2)` | Save to a JSON file |
 
 ---
 
-## 의존성
+## Dependencies
 
-- **pyyaml**: YAML 지원
+- **pyyaml**: YAML support
 
-설치:
+Installation:
 ```bash
 pip install pyyaml
 ```
 
 ---
 
-## 모범 사례
+## Best Practices
 
-1. **기본값 설정**: 모든 필드에 합리적인 기본값 지정
-2. **타입 힌트**: 모든 필드에 타입 힌트 추가
-3. **문서화**: docstring으로 설정 설명
-4. **검증**: `__post_init__`에서 값 검증
-5. **재현성**: 학습 시작 시 설정을 파일로 저장
+1. **Set default values**: Specify reasonable default values for every field
+2. **Type hints**: Add type hints to every field
+3. **Documentation**: Describe settings with a docstring
+4. **Validation**: Validate values in `__post_init__`
+5. **Reproducibility**: Save the config to a file at the start of training
