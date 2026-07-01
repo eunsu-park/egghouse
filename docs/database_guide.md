@@ -1,27 +1,27 @@
-# egghouse.database 사용 가이드
+# egghouse.database Usage Guide
 
-PostgreSQL 데이터베이스 관리 유틸리티.
+PostgreSQL database management utility.
 
-> **v0.7+ / v0.8+**: 선언형 스키마 생성과 대량 레코드 헬퍼는 아래
-> [선언형 스키마](#선언형-스키마-v07) 및
-> [대량 레코드 헬퍼](#대량-레코드-헬퍼-v07) 절을 참조하세요.
-> 솔라/우주기상 DB 도메인 레이어(`egghouse.swdb`, v0.8)는
-> [egghouse.swdb 연계](#egghouseswdb-연계-v08) 절을 참조하세요.
+> **v0.7+ / v0.8+**: For declarative schema creation and bulk record helpers, see the
+> [Declarative Schema](#declarative-schema-v07) and
+> [Bulk Record Helpers](#bulk-record-helpers-v07) sections below.
+> For the solar / space-weather DB domain layer (`egghouse.swdb`, v0.8), see the
+> [egghouse.swdb Integration](#egghouseswdb-integration-v08) section.
 
 ---
 
-## 개요
+## Overview
 
-연구 목적의 간단한 PostgreSQL 관리 도구입니다:
-- 데이터베이스/스키마/테이블 관리
-- CRUD 연산 (Insert, Select, Update, Delete)
+A simple PostgreSQL management tool for research purposes:
+- Database/schema/table management
+- CRUD operations (Insert, Select, Update, Delete)
 - Upsert (Insert on Conflict)
-- 날짜 범위 쿼리
-- pandas DataFrame 변환
+- Date range queries
+- pandas DataFrame conversion
 
 ---
 
-## 설치
+## Installation
 
 ```bash
 pip install psycopg2-binary
@@ -29,27 +29,27 @@ pip install psycopg2-binary
 
 ---
 
-## 설정 방법
+## Configuration
 
-### 환경 변수
+### Environment Variables
 
 ```bash
 export DB_HOST=localhost
 export DB_PORT=5432
-export DB_NAME=solar_data       # 또는 DB_DATABASE
+export DB_NAME=solar_data       # or DB_DATABASE
 export DB_USER=username
 export DB_PASSWORD=password
-export DB_LOG_QUERIES=true      # 쿼리 로깅 (선택)
+export DB_LOG_QUERIES=true      # query logging (optional)
 ```
 
 ```python
 from egghouse.database import PostgresManager, load_config
 
-config = load_config()  # 환경 변수에서 자동 로드
+config = load_config()  # loaded automatically from environment variables
 db = PostgresManager(**config['database'])
 ```
 
-### YAML 파일
+### YAML File
 
 ```yaml
 # database.yaml
@@ -67,7 +67,7 @@ config = load_config('database.yaml')
 db = PostgresManager(**config['database'])
 ```
 
-### JSON 파일
+### JSON File
 
 ```json
 {
@@ -86,12 +86,12 @@ config = load_config('database.json')
 db = PostgresManager(**config['database'])
 ```
 
-### 직접 지정
+### Direct Specification
 
 ```python
 from egghouse.database import PostgresManager, from_dict
 
-# 딕셔너리로 생성
+# create from a dictionary
 config = from_dict({
     'host': 'localhost',
     'port': 5432,
@@ -101,7 +101,7 @@ config = from_dict({
 })
 db = PostgresManager(**config)
 
-# 또는 직접 인자로 전달
+# or pass arguments directly
 db = PostgresManager(
     host='localhost',
     port=5432,
@@ -112,7 +112,7 @@ db = PostgresManager(
 )
 ```
 
-### 예제 설정 파일 생성
+### Creating an Example Config File
 
 ```python
 from egghouse.database import create_example_config
@@ -122,14 +122,14 @@ create_example_config('config.example.yaml')
 
 ---
 
-## PostgresManager 사용법
+## PostgresManager Usage
 
-### 연결 관리
+### Connection Management
 
 ```python
 from egghouse.database import PostgresManager
 
-# 기본 연결
+# basic connection
 db = PostgresManager(
     host='localhost',
     database='solar_data',
@@ -137,51 +137,51 @@ db = PostgresManager(
     password='pass'
 )
 
-# 작업 완료 후 닫기
+# close after finishing work
 db.close()
 
-# Context manager 사용 (권장)
+# using a context manager (recommended)
 with PostgresManager(**config) as db:
     db.insert('users', {'name': 'test'})
-    # 자동으로 close() 호출
+    # close() is called automatically
 ```
 
 ---
 
-## 데이터 조작 (CRUD)
+## Data Manipulation (CRUD)
 
 ### Insert
 
 ```python
-# 단일 행 삽입
+# insert a single row
 db.insert('users', {'name': 'Eunsu', 'email': 'eunsu@kasi.re.kr'})
 
-# 다중 행 삽입
+# insert multiple rows
 db.insert('users', [
     {'name': 'User1', 'email': 'user1@example.com'},
     {'name': 'User2', 'email': 'user2@example.com'}
 ])
 
-# ID 반환 (SERIAL 컬럼 있을 때)
+# return the ID (when there is a SERIAL column)
 new_id = db.insert('users', {'name': 'New'}, return_id=True)
 ```
 
 ### Select
 
 ```python
-# 모든 행 조회
+# select all rows
 users = db.select('users')
 
-# 특정 컬럼만 조회
+# select specific columns only
 users = db.select('users', columns=['id', 'name'])
 
-# WHERE 조건
+# WHERE condition
 users = db.select('users', where={'name': 'Eunsu'})
 
-# 정렬 및 제한
+# ordering and limit
 users = db.select('users', order_by='created_at DESC', limit=10)
 
-# 조합
+# combined
 users = db.select('users',
     columns=['id', 'name', 'email'],
     where={'active': True},
@@ -193,7 +193,7 @@ users = db.select('users',
 ### Update
 
 ```python
-# WHERE 절 필수!
+# WHERE clause is required!
 affected_rows = db.update('users',
     data={'email': 'new@example.com'},
     where={'name': 'Eunsu'}
@@ -204,7 +204,7 @@ print(f"Updated {affected_rows} rows")
 ### Delete
 
 ```python
-# WHERE 절 필수!
+# WHERE clause is required!
 deleted_rows = db.delete('users', where={'name': 'Eunsu'})
 print(f"Deleted {deleted_rows} rows")
 ```
@@ -213,38 +213,38 @@ print(f"Deleted {deleted_rows} rows")
 
 ## Upsert (Insert or Update)
 
-충돌 시 업데이트하는 INSERT ON CONFLICT DO UPDATE.
+INSERT ON CONFLICT DO UPDATE, which updates on conflict.
 
 ```python
-# 단일 행 upsert
+# single-row upsert
 db.upsert('observations',
     data={'filepath': '/data/aia.fits', 'wavelength': 171, 'processed': True},
     conflict_columns='filepath',
     update_columns=['processed']
 )
 
-# 다중 행 upsert
+# multi-row upsert
 db.upsert('observations', [
     {'filepath': f1, 'wavelength': 171, 'status': 'done'},
     {'filepath': f2, 'wavelength': 193, 'status': 'done'}
 ], conflict_columns='filepath')
 
-# 복합 키 충돌
+# composite key conflict
 db.upsert('data',
     data={'date': '2024-01-01', 'wavelength': 171, 'count': 10},
     conflict_columns=['date', 'wavelength']
 )
 
-# update_columns 미지정 시 conflict_columns 외 모든 컬럼 업데이트
+# when update_columns is not specified, all columns except conflict_columns are updated
 db.upsert('users',
     data={'username': 'eunsu', 'email': 'new@email.com', 'status': 'active'},
     conflict_columns='username'
-)  # email, status가 업데이트됨
+)  # email and status get updated
 ```
 
 ---
 
-## 날짜 범위 쿼리
+## Date Range Queries
 
 ```python
 from datetime import datetime
@@ -252,14 +252,14 @@ from datetime import datetime
 start = datetime(2024, 1, 1)
 end = datetime(2024, 12, 31)
 
-# 기본 (start <= date < end)
+# default (start <= date < end)
 results = db.select_date_range('observations',
     date_column='date',
     start_date=start,
     end_date=end
 )
 
-# 끝 날짜 포함 (start <= date <= end)
+# include end date (start <= date <= end)
 results = db.select_date_range('observations',
     date_column='date',
     start_date=start,
@@ -267,7 +267,7 @@ results = db.select_date_range('observations',
     inclusive_end=True
 )
 
-# 추가 조건과 함께
+# with additional conditions
 results = db.select_date_range('observations',
     date_column='timestamp',
     start_date=start,
@@ -281,9 +281,9 @@ results = db.select_date_range('observations',
 
 ---
 
-## 테이블 관리
+## Table Management
 
-### 테이블 생성
+### Creating a Table
 
 ```python
 db.create_table('observations', {
@@ -296,19 +296,19 @@ db.create_table('observations', {
 })
 ```
 
-### 테이블 목록
+### Listing Tables
 
 ```python
-# 전체 정보 (이름, 크기)
+# full information (name, size)
 tables = db.list_tables()
 # [{'name': 'users', 'size': '8192 bytes'}, ...]
 
-# 이름만
+# names only
 table_names = db.list_tables(names_only=True)
 # ['users', 'observations', ...]
 ```
 
-### 테이블 구조 확인
+### Inspecting Table Structure
 
 ```python
 columns = db.describe_table('observations')
@@ -316,32 +316,32 @@ for col in columns:
     print(f"{col['name']}: {col['type']}")
 ```
 
-### 테이블 존재 확인
+### Checking Table Existence
 
 ```python
 if db.table_exists('observations'):
     print("Table exists")
 ```
 
-### 테이블 삭제
+### Dropping a Table
 
 ```python
 db.drop_table('old_table')
-db.drop_table('parent_table', cascade=True)  # 의존 객체도 삭제
+db.drop_table('parent_table', cascade=True)  # also drop dependent objects
 ```
 
 ---
 
-## 유틸리티
+## Utilities
 
-### 행 수 세기
+### Counting Rows
 
 ```python
 total = db.count('observations')
 filtered = db.count('observations', where={'wavelength': 171})
 ```
 
-### 테이블 비우기
+### Emptying a Table
 
 ```python
 db.truncate('temp_data')
@@ -351,14 +351,14 @@ db.truncate('parent_table', cascade=True)
 ### VACUUM
 
 ```python
-db.vacuum()                        # 전체 데이터베이스
-db.vacuum('observations')          # 특정 테이블
+db.vacuum()                        # entire database
+db.vacuum('observations')          # specific table
 db.vacuum('observations', full=True)  # VACUUM FULL
 ```
 
 ---
 
-## DataFrame 변환
+## DataFrame Conversion
 
 ```python
 from egghouse.database import to_dataframe
@@ -366,30 +366,30 @@ from egghouse.database import to_dataframe
 results = db.select('observations')
 df = to_dataframe(results)
 
-# 날짜 컬럼 파싱
+# parse date columns
 df = to_dataframe(results, parse_dates=['date', 'created_at'])
 
-# 직접 사용
+# direct use
 import pandas as pd
 df = pd.DataFrame(results)
 ```
 
 ---
 
-## Raw SQL 실행
+## Raw SQL Execution
 
 ```python
-# 결과 없는 쿼리
+# query with no result
 db.execute("CREATE INDEX idx_wavelength ON observations(wavelength)")
 
-# 결과 있는 쿼리
+# query with a result
 results = db.execute(
     "SELECT * FROM observations WHERE wavelength = %s",
     params=(171,),
     fetch=True
 )
 
-# 파라미터화 쿼리 (SQL injection 방지)
+# parameterized query (prevents SQL injection)
 results = db.execute(
     "SELECT * FROM users WHERE name = %s AND status = %s",
     params=('Eunsu', 'active'),
@@ -399,74 +399,74 @@ results = db.execute(
 
 ---
 
-## 스키마 관리
+## Schema Management
 
 ```python
-# 스키마 생성
+# create a schema
 db.create_schema('solar')
 
-# 스키마 내 테이블 생성
+# create a table within a schema
 db.create_table('observations', {...}, schema='solar')
 
-# 스키마 내 테이블 조작
+# manipulate tables within a schema
 db.insert('observations', data, schema='solar')
 db.select('observations', schema='solar')
 
-# 스키마 목록
+# list schemas
 schemas = db.list_schemas()
 
-# 스키마 삭제
+# drop a schema
 db.drop_schema('solar', cascade=True)
 ```
 
 ---
 
-## 데이터베이스 관리
+## Database Management
 
 ```python
-# 데이터베이스 없이 연결 (관리용)
+# connect without a database (for administration)
 db = PostgresManager(host='localhost', user='admin', password='pass')
 
-# 데이터베이스 생성
+# create a database
 db.create_database('new_db')
 
-# 데이터베이스 목록
+# list databases
 databases = db.list_databases()
 
-# 데이터베이스 삭제
-db.drop_database('old_db', force=True)  # 연결 강제 종료 후 삭제
+# drop a database
+db.drop_database('old_db', force=True)  # forcibly terminate connections then drop
 ```
 
 ---
 
-## SQL Injection 방지
+## SQL Injection Prevention
 
-PostgresManager는 `psycopg2.sql` 모듈을 사용하여 SQL Injection을 방지합니다:
+PostgresManager uses the `psycopg2.sql` module to prevent SQL Injection:
 
 ```python
-# 안전: 파라미터화 쿼리 사용
+# safe: use a parameterized query
 db.select('users', where={'name': user_input})
 
-# 안전: sql.Identifier로 테이블/컬럼명 처리
-db.insert(table_name, data)  # 내부적으로 sql.Identifier 사용
+# safe: handle table/column names with sql.Identifier
+db.insert(table_name, data)  # uses sql.Identifier internally
 
-# 위험: 직접 문자열 조합 (하지 마세요!)
+# dangerous: direct string concatenation (do not do this!)
 # db.execute(f"SELECT * FROM {table_name}")  # NEVER DO THIS
 ```
 
 ---
 
-## 전체 예제
+## Full Example
 
 ```python
 from datetime import datetime, timedelta
 from egghouse.database import PostgresManager, load_config, to_dataframe
 
-# 설정 로드
+# load config
 config = load_config('database.yaml')
 
 with PostgresManager(**config['database']) as db:
-    # 테이블 생성
+    # create table
     if not db.table_exists('observations'):
         db.create_table('observations', {
             'id': 'SERIAL PRIMARY KEY',
@@ -476,14 +476,14 @@ with PostgresManager(**config['database']) as db:
             'processed': 'BOOLEAN DEFAULT FALSE'
         })
 
-    # 데이터 삽입
+    # insert data
     db.insert('observations', {
         'filepath': '/data/aia_171_20240101.fits',
         'wavelength': 171,
         'date': datetime(2024, 1, 1, 12, 0, 0)
     })
 
-    # Upsert (중복 시 업데이트)
+    # Upsert (update on duplicate)
     db.upsert('observations', {
         'filepath': '/data/aia_171_20240101.fits',
         'wavelength': 171,
@@ -491,7 +491,7 @@ with PostgresManager(**config['database']) as db:
         'processed': True
     }, conflict_columns='filepath')
 
-    # 쿼리
+    # query
     today = datetime.now()
     week_ago = today - timedelta(days=7)
 
@@ -502,32 +502,32 @@ with PostgresManager(**config['database']) as db:
         where={'wavelength': 171}
     )
 
-    # DataFrame 변환
+    # DataFrame conversion
     df = to_dataframe(results, parse_dates=['date'])
     print(f"Found {len(df)} observations")
 ```
 
 ---
 
-## 선언형 스키마 (v0.7+)
+## Declarative Schema (v0.7+)
 
-`PostgresManager.create_table()`이 테이블을 하나씩 만드는 반면,
-`egghouse.database.schema` 모듈은 **설정 딕셔너리 하나로 전체 스키마를
-선언적으로 생성**합니다. setup-sw-db의 `core/database.py`에서 일반화하여
-가져온 인프라로, 프로젝트별 도메인 코드 없이 config dict + import만으로
-스키마를 구축할 수 있습니다.
+Whereas `PostgresManager.create_table()` creates tables one at a time,
+the `egghouse.database.schema` module **declaratively creates an entire schema
+from a single config dictionary**. It is infrastructure generalized and imported
+from setup-sw-db's `core/database.py`, letting you build a schema with just a
+config dict + import, without any project-specific domain code.
 
-### schema_config 형식
+### schema_config Format
 
-`schema_config`는 `테이블명 -> 테이블 스펙` 의 평범한 dict입니다.
-테이블 스펙은 `컬럼명 -> SQL 타입` 매핑에 더해 다음 예약 메타 키를
-선택적으로 가집니다:
+`schema_config` is a plain dict of `table name -> table spec`.
+A table spec is a `column name -> SQL type` mapping, plus the following optional
+reserved meta keys:
 
-| 메타 키 | 의미 |
+| Meta key | Meaning |
 |---------|------|
-| `_primary_key` | 복합 PRIMARY KEY 를 구성할 컬럼 리스트 |
-| `_unique` | UNIQUE 제약. 컬럼명(str) 또는 컬럼 리스트(다중 컬럼). 여러 개면 리스트의 리스트 |
-| `_indexes` | CREATE INDEX 대상. 각 항목은 컬럼명 또는 컬럼 리스트 |
+| `_primary_key` | List of columns that make up a composite PRIMARY KEY |
+| `_unique` | UNIQUE constraint. A column name (str) or a list of columns (multi-column). If there are several, a list of lists |
+| `_indexes` | Targets for CREATE INDEX. Each item is a column name or a list of columns |
 
 ```python
 schema = {
@@ -543,21 +543,21 @@ schema = {
 }
 ```
 
-이 형식은 **instrument-blind**(계측기 비의존)입니다. 모듈은 테이블이
-"무엇을 의미하는지" 전혀 들여다보지 않고 선언된 컬럼과 제약만 다룹니다.
-태양 이미지든 우주기상 시계열이든 임의의 선언형 config 를
-`initialize_database`에 넘기면 정확히 그 테이블들이 생성됩니다.
+This format is **instrument-blind**. The module never looks into "what a table
+means"; it only handles the declared columns and constraints. Whether solar
+images or space-weather time series, if you pass an arbitrary declarative config
+to `initialize_database`, exactly those tables are created.
 
-> **식별자 안전성**: 테이블/컬럼/인덱스 식별자는
-> `^[A-Za-z_][A-Za-z0-9_]*$` 패턴으로 검증되며, 위반 시 `ValueError`가
-> 발생합니다. schema config 는 개발자가 작성하지만, 오타로 주입 가능한
-> DDL 이 생성되면 조용히 위험해지므로 경계 검사를 둡니다. 컬럼 *타입*은
-> 자유 형식 텍스트입니다.
+> **Identifier safety**: Table/column/index identifiers are validated against the
+> `^[A-Za-z_][A-Za-z0-9_]*$` pattern, and a violation raises `ValueError`.
+> The schema config is written by the developer, but if a typo produces injectable
+> DDL it becomes silently dangerous, so a boundary check is in place. Column *types*
+> are free-form text.
 
-### 순수 빌더 (DB 연결 불필요)
+### Pure Builders (no DB connection required)
 
-다음 함수들은 순수 함수로, 살아있는 PostgreSQL 없이 단위 테스트가
-가능합니다.
+The following functions are pure functions and can be unit-tested without a live
+PostgreSQL.
 
 #### build_create_table_sql
 
@@ -569,14 +569,15 @@ sql = build_create_table_sql("sdo", schema["sdo"])
 #   PRIMARY KEY (telescope, channel, datetime), UNIQUE (file_path))
 ```
 
-선언형 테이블 스펙을 단일 `CREATE TABLE` 문으로 변환합니다.
-`_primary_key`가 주어지면 개별 컬럼 타입의 인라인 `PRIMARY KEY`는
-제거되고 복합 `PRIMARY KEY (...)` 제약이 끝에 추가됩니다. `_unique`
-항목은 컬럼명 또는 컬럼명 리스트(다중 컬럼 UNIQUE)일 수 있습니다.
+Converts a declarative table spec into a single `CREATE TABLE` statement.
+When `_primary_key` is given, the inline `PRIMARY KEY` on individual column types
+is removed and a composite `PRIMARY KEY (...)` constraint is appended at the end.
+An `_unique` item can be a column name or a list of column names (multi-column
+UNIQUE).
 
-##### 파라미터
-- `table_name` (str): 테이블 이름 (식별자 검증됨).
-- `table_spec` (dict): 컬럼 매핑 + 메타 키. 컬럼이 없으면 `ValueError`.
+##### Parameters
+- `table_name` (str): Table name (identifier is validated).
+- `table_spec` (dict): Column mapping + meta keys. If there are no columns, `ValueError`.
 
 #### build_index_sql
 
@@ -588,13 +589,13 @@ stmts = build_index_sql("sdo", [["datetime"], ["telescope"]])
 #  'CREATE INDEX idx_sdo_telescope ON sdo (telescope)']
 ```
 
-`_indexes`를 `CREATE INDEX` 문 리스트로 변환합니다. 각 항목은 컬럼명
-또는 컬럼명 리스트입니다. 인덱스명은 `idx_<table>_<cols>` 규칙으로
-생성됩니다.
+Converts `_indexes` into a list of `CREATE INDEX` statements. Each item is a
+column name or a list of column names. Index names are generated following the
+`idx_<table>_<cols>` convention.
 
-##### 파라미터
-- `table_name` (str): 테이블 이름.
-- `indexes` (list | None): `_indexes` 값. 비어 있으면 빈 리스트 반환.
+##### Parameters
+- `table_name` (str): Table name.
+- `indexes` (list | None): The `_indexes` value. Returns an empty list if empty.
 
 #### split_schema_meta
 
@@ -606,17 +607,17 @@ columns, primary_key, unique, indexes = split_schema_meta(schema["sdo"])
 # primary_key = ['telescope', 'channel', 'datetime']
 ```
 
-테이블 스펙을 `(columns, primary_key, unique, indexes)` 튜플로 분리합니다.
-호출자의 dict 는 변경하지 않습니다(non-mutating). 메타 키가 없으면 해당
-값은 `None`입니다.
+Splits a table spec into a `(columns, primary_key, unique, indexes)` tuple.
+It does not modify the caller's dict (non-mutating). If a meta key is absent, the
+corresponding value is `None`.
 
-##### 파라미터
-- `table_spec` (dict): 테이블 스펙.
+##### Parameters
+- `table_spec` (dict): Table spec.
 
-### 연결 래퍼 (DB 연결 사용)
+### Connection Wrappers (use a DB connection)
 
-다음 함수들은 내부적으로 `PostgresManager`를 열어 실제 DB 에 적용하는
-통합 레벨 함수입니다.
+The following functions are integration-level functions that internally open a
+`PostgresManager` and apply changes to the actual DB.
 
 #### create_database
 
@@ -626,14 +627,15 @@ from egghouse.database import create_database
 ok = create_database(db_config, verbose=True)
 ```
 
-대상 데이터베이스가 없으면 생성합니다(멱등). 먼저 대상 DB 로 접속을
-시도하고, 성공하면 이미 존재하는 것입니다. 실패하면 관리용 DB
-(`template1` → `postgres`)로 접속해 `CREATE DATABASE`를 실행합니다.
-DB 가 존재하거나 생성되면 `True`, 실패하면 `False`를 반환합니다.
+Creates the target database if it does not exist (idempotent). It first tries to
+connect to the target DB; if it succeeds, the DB already exists. If it fails, it
+connects to an administrative DB (`template1` → `postgres`) and runs
+`CREATE DATABASE`. Returns `True` if the DB exists or is created, `False` on
+failure.
 
-##### 파라미터
-- `db_config` (dict): `PostgresManager` 인자(host, port, database, user, password, ...).
-- `verbose` (bool, 키워드 전용): 진행 상황 출력. 기본 `False`.
+##### Parameters
+- `db_config` (dict): `PostgresManager` arguments (host, port, database, user, password, ...).
+- `verbose` (bool, keyword-only): Print progress. Default `False`.
 
 #### create_tables_from_schema
 
@@ -641,20 +643,20 @@ DB 가 존재하거나 생성되면 `True`, 실패하면 `False`를 반환합니
 from egghouse.database import create_tables_from_schema
 
 actions = create_tables_from_schema(db_config, schema, drop=False, verbose=True)
-# {'sdo': 'created'}  # 또는 'recreated' / 'skipped'
+# {'sdo': 'created'}  # or 'recreated' / 'skipped'
 ```
 
-`schema_config`에 기술된 모든 테이블을 생성합니다. 기존 테이블은
-`drop=True`가 아니면 건너뜁니다(`skipped`). `drop=True`면 기존 테이블을
-`CASCADE`로 삭제 후 재생성합니다(`recreated`).
+Creates all tables described in `schema_config`. Existing tables are skipped
+unless `drop=True` (`skipped`). If `drop=True`, existing tables are dropped with
+`CASCADE` and recreated (`recreated`).
 
-##### 파라미터
-- `db_config` (dict): `PostgresManager` 인자.
-- `schema_config` (dict): `{테이블명: 테이블 스펙}`.
-- `drop` (bool, 키워드 전용): 기존 테이블 삭제 후 재구축. 기본 `False`.
-- `verbose` (bool, 키워드 전용): 테이블별 동작 출력. 기본 `False`.
+##### Parameters
+- `db_config` (dict): `PostgresManager` arguments.
+- `schema_config` (dict): `{table name: table spec}`.
+- `drop` (bool, keyword-only): Drop existing tables and rebuild. Default `False`.
+- `verbose` (bool, keyword-only): Print per-table action. Default `False`.
 
-반환값: `{테이블명: "created" | "recreated" | "skipped"}`.
+Return value: `{table name: "created" | "recreated" | "skipped"}`.
 
 #### initialize_database
 
@@ -684,22 +686,23 @@ db_config = {
 actions = initialize_database(db_config, schema, verbose=True)
 ```
 
-`create_database`와 `create_tables_from_schema`를 결합한 편의 래퍼입니다.
-DB 를 (멱등하게) 생성한 뒤 모든 테이블을 만들고 동작 dict 를 반환합니다.
+A convenience wrapper that combines `create_database` and
+`create_tables_from_schema`. It (idempotently) creates the DB, then creates all
+tables and returns the action dict.
 
-##### 파라미터
-- `db_config` (dict): `PostgresManager` 인자.
-- `schema_config` (dict): `{테이블명: 테이블 스펙}`.
-- `verbose` (bool, 키워드 전용): 진행 상황 출력. 기본 `False`.
+##### Parameters
+- `db_config` (dict): `PostgresManager` arguments.
+- `schema_config` (dict): `{table name: table spec}`.
+- `verbose` (bool, keyword-only): Print progress. Default `False`.
 
 ---
 
-## 대량 레코드 헬퍼 (v0.7+)
+## Bulk Record Helpers (v0.7+)
 
-`egghouse.database.records` 모듈은 pandas DataFrame 의 대량 upsert 와
-고아 레코드 정리를 제공합니다. SQL 문자열 빌더와 레코드 정규화는 순수
-함수(PostgreSQL 없이 단위 테스트 가능)이며, 연결을 여는 함수는 통합
-레벨입니다.
+The `egghouse.database.records` module provides bulk upsert of pandas DataFrames
+and cleanup of orphan records. The SQL string builders and record normalization
+are pure functions (unit-testable without PostgreSQL), while functions that open
+a connection are integration-level.
 
 #### normalize_records
 
@@ -710,12 +713,12 @@ records = normalize_records(df)
 # [{'telescope': 'sdo', 'datetime': ..., ...}, ...]
 ```
 
-DataFrame 을 dict 행 리스트로 변환합니다. 컬럼명은 소문자화되고,
-`NaN`은 `None`으로 치환됩니다(psycopg2 가 SQL `NULL`을 기록하도록).
-빈 DataFrame 은 빈 리스트를 반환합니다(원본 setup-sw-db 코드가 충돌하던
-edge case 를 처리).
+Converts a DataFrame into a list of dict rows. Column names are lowercased, and
+`NaN` is replaced with `None` (so psycopg2 writes SQL `NULL`). An empty DataFrame
+returns an empty list (handling an edge case where the original setup-sw-db code
+crashed).
 
-##### 파라미터
+##### Parameters
 - `df`: pandas DataFrame.
 
 #### build_upsert_sql
@@ -730,14 +733,14 @@ sql = build_upsert_sql("sdo", ["telescope", "channel", "datetime", "file_path"],
 #   ON CONFLICT (telescope, channel, datetime) DO NOTHING
 ```
 
-`INSERT ... ON CONFLICT (...) DO NOTHING` 문을 생성하는 순수 함수입니다.
-복합 conflict 타깃을 지원하며, execute 당 단일 위치 파라미터 행(`%s`
-플레이스홀더)을 기대합니다. 식별자는 검증됩니다.
+A pure function that generates an `INSERT ... ON CONFLICT (...) DO NOTHING`
+statement. It supports composite conflict targets and expects a single positional
+parameter row (`%s` placeholders) per execute. Identifiers are validated.
 
-##### 파라미터
-- `table` (str): 테이블 이름.
-- `columns` (list[str]): 삽입할 컬럼 목록.
-- `conflict_columns` (str | list[str]): 충돌 판정 컬럼. 문자열이면 단일 컬럼.
+##### Parameters
+- `table` (str): Table name.
+- `columns` (list[str]): List of columns to insert.
+- `conflict_columns` (str | list[str]): Columns used to detect conflicts. A single column if a string.
 
 #### upsert_dataframe
 
@@ -751,23 +754,24 @@ inserted = upsert_dataframe(
 )
 print(f"{inserted} rows inserted")
 
-# 멱등성: 같은 데이터로 다시 실행하면 아무것도 삽입되지 않음
+# idempotency: running again with the same data inserts nothing
 again = upsert_dataframe(df, "sdo", db_config,
                          conflict_columns=["telescope", "channel", "datetime"])
 assert again == 0
 ```
 
-행을 삽입하되 `conflict_columns` 충돌은 조용히 건너뜁니다. **멱등적**이라
-이미 존재하는 행으로 재실행해도 아무것도 삽입되지 않습니다. 복합 PK 와
-별개인 다른 UNIQUE 제약(예: `UNIQUE(file_path)`) 위반도 에러가 아니라
-스킵으로 처리됩니다. 실제로 삽입된 행 수(스킵 제외)를 반환합니다.
+Inserts rows but silently skips `conflict_columns` conflicts. Because it is
+**idempotent**, re-running with already-existing rows inserts nothing. Violations
+of other UNIQUE constraints distinct from the composite PK (e.g.,
+`UNIQUE(file_path)`) are also treated as skips rather than errors. Returns the
+number of rows actually inserted (excluding skips).
 
-##### 파라미터
+##### Parameters
 - `df`: pandas DataFrame.
-- `table` (str): 대상 테이블.
-- `db_config` (dict): `PostgresManager` 인자.
-- `conflict_columns` (str | list[str], 키워드 전용): 충돌 판정 컬럼. 기본 `"datetime"`.
-- `batch` (int, 키워드 전용): 배치 크기. 기본 `1000`.
+- `table` (str): Target table.
+- `db_config` (dict): `PostgresManager` arguments.
+- `conflict_columns` (str | list[str], keyword-only): Columns used to detect conflicts. Default `"datetime"`.
+- `batch` (int, keyword-only): Batch size. Default `1000`.
 
 #### find_orphans
 
@@ -775,14 +779,13 @@ assert again == 0
 from egghouse.database import find_orphans
 
 missing = find_orphans(["/data/a.fits", "/data/b.fits"])
-# 디스크에 더 이상 존재하지 않는 경로만 반환
+# returns only paths that no longer exist on disk
 ```
 
-주어진 경로 중 디스크에 더 이상 존재하지 않는 경로의 부분집합을
-반환합니다.
+Returns the subset of the given paths that no longer exist on disk.
 
-##### 파라미터
-- `file_paths` (list[str]): 검사할 경로 목록.
+##### Parameters
+- `file_paths` (list[str]): List of paths to check.
 
 #### delete_orphans
 
@@ -793,47 +796,47 @@ deleted = delete_orphans("sdo", db_config, file_column="file_path")
 print(f"{deleted} orphan rows deleted")
 ```
 
-참조하는 파일이 디스크에서 사라진 행을 삭제합니다. 삭제된 행 수를
-반환합니다.
+Deletes rows whose referenced file has disappeared from disk. Returns the number
+of deleted rows.
 
-##### 파라미터
-- `table` (str): 대상 테이블.
-- `db_config` (dict): `PostgresManager` 인자.
-- `file_column` (str, 키워드 전용): 파일 경로 컬럼명. 기본 `"file_path"`.
-
----
-
-## egghouse.swdb 연계 (v0.8+)
-
-v0.8 의 `egghouse.swdb`는 위 일반(instrument-blind) 헬퍼 위에 구축된
-솔라/우주기상 DB 도메인 레이어입니다. 본 모듈의 선언형 스키마와 대량
-upsert 를 그대로 활용하면서, 참조 스키마(`SDO_SCHEMA`, `LASCO_SCHEMA`,
-`SECCHI_SCHEMA`), FITS 핸들러(`FitsHandler` ABC, AIA 구현), 디렉터리
-스캔/등록 같은 도메인 기능을 더합니다. swdb 의 내부 동작과 사용 예시는
-`docs/swdb_guide.md` 및 루트 `README.MD`의 Modules 절을 참조하세요.
-함수 시그니처는 `API_REFERENCE.md`, 변경 이력은 `CHANGELOG.md`에
-있습니다.
+##### Parameters
+- `table` (str): Target table.
+- `db_config` (dict): `PostgresManager` arguments.
+- `file_column` (str, keyword-only): File path column name. Default `"file_path"`.
 
 ---
 
-## 의존성
+## egghouse.swdb Integration (v0.8+)
 
-| 패키지 | 용도 |
+v0.8's `egghouse.swdb` is a solar / space-weather DB domain layer built on top of
+the generic (instrument-blind) helpers above. It reuses this module's declarative
+schema and bulk upsert as-is, while adding domain features such as reference
+schemas (`SDO_SCHEMA`, `LASCO_SCHEMA`, `SECCHI_SCHEMA`), FITS handlers
+(`FitsHandler` ABC, AIA implementation), and directory scanning/registration.
+For the internal behavior and usage examples of swdb, see `docs/swdb_guide.md`
+and the Modules section of the root `README.MD`. Function signatures are in
+`API_REFERENCE.md`, and the change history is in `CHANGELOG.md`.
+
+---
+
+## Dependencies
+
+| Package | Purpose |
 |--------|------|
-| psycopg2-binary | PostgreSQL 연결 |
-| pyyaml | YAML 설정 파일 |
-| pandas (선택) | DataFrame 변환 |
+| psycopg2-binary | PostgreSQL connection |
+| pyyaml | YAML config file |
+| pandas (optional) | DataFrame conversion |
 
-설치:
+Installation:
 ```bash
 pip install psycopg2-binary pyyaml pandas
 ```
 
 ---
 
-## 주의사항
+## Notes
 
-1. **Autocommit**: PostgresManager는 autocommit 모드로 동작합니다. 트랜잭션이 필요하면 직접 관리하세요.
-2. **WHERE 필수**: `update()`와 `delete()`는 WHERE 절 없이 실행할 수 없습니다 (안전 장치).
-3. **연결 관리**: context manager(`with`)를 사용하거나 작업 후 `close()`를 호출하세요.
-4. **비밀번호**: 코드에 비밀번호를 하드코딩하지 마세요. 환경 변수나 설정 파일을 사용하세요.
+1. **Autocommit**: PostgresManager operates in autocommit mode. If you need transactions, manage them yourself.
+2. **WHERE required**: `update()` and `delete()` cannot run without a WHERE clause (a safety guard).
+3. **Connection management**: Use a context manager (`with`) or call `close()` after your work.
+4. **Passwords**: Do not hardcode passwords in code. Use environment variables or config files.
