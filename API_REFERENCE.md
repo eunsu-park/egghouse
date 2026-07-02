@@ -92,6 +92,13 @@ Generic image processing utilities. Organized into submodules:
 | `pearson_corr` | `(a, b) -> float` | Pearson correlation of two arrays; NaN if either is constant |
 | `db_ratio` | `(numerator, denominator) -> float` | Amplitude ratio in dB (`20*log10`); NaN/`+inf` guards for zero scales |
 
+### Augment (paired)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `paired_random_crop` | `(a, b, patch, rng) -> (np.ndarray, np.ndarray)` | Same random square crop applied to an (input, target) pair |
+| `paired_flip_rot` | `(a, b, rng) -> (np.ndarray, np.ndarray)` | Same random flip + 90° rotation applied to both arrays |
+
 ### Transforms (v0.9+)
 
 Composable numpy transform factories; combine with `compose([...])`.
