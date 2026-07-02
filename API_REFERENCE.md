@@ -414,6 +414,22 @@ AIA-only; other instruments subclass `FitsHandler` per project.
 | `register_fits_dir` | `(scan_dir, *, handler, table, db_config, conflict_columns, move_root=None, error_dirs=None, pattern='*.fits', exclude_substrings=('spike',), parallel=1, batch_size=1000, verbose=False) -> RegisterReport` | Scan → validate → idempotent upsert → optional archive |
 | `RegisterReport` | dataclass; `.summary()` | Counts: scanned/valid/inserted/skipped_existing/errors (reconcile) |
 
+### SWPC real-time parsers (v0.11+)
+
+Pure pandas parsers (no DB) for NOAA SWPC real-time JSON products, in
+`egghouse.swdb.swpc`; re-exported from `egghouse.swdb`.
+
+| Name | Signature | Description |
+|------|-----------|-------------|
+| `parse_xray` | `(data: list) -> pd.DataFrame` | GOES X-ray flux → `rt_goes_xray` (short/long bands pivoted per satellite/time) |
+| `parse_proton` | `(data: list) -> pd.DataFrame` | GOES integral proton flux → `rt_goes_proton` (long format per energy threshold) |
+| `parse_solar_wind` | `(data: list, kind: str, source='DSCOVR') -> pd.DataFrame` | L1 solar wind 'plasma'/'mag' header-row product → `rt_*` |
+| `parse_kp_1m` | `(data: list) -> pd.DataFrame` | Estimated 1-min planetary K index → `rt_kp` |
+| `parse_kp_forecast` | `(data: list) -> pd.DataFrame` | 3-hourly Kp forecast → `rt_kp_forecast` |
+| `parse_solar_probabilities` | `(data: list) -> pd.DataFrame` | C/M/X flare + 10 MeV proton probabilities → `swpc_solar_probabilities` |
+| `parse_alerts` | `(data: list) -> pd.DataFrame` | Alerts/watches/warnings → `swpc_alerts` |
+| `parse_3day_forecast` | `(text: str) -> pd.DataFrame` | 3-day forecast text → `swpc_3day_forecast` (raw + issue time) |
+
 ---
 
 ## egghouse.transfer

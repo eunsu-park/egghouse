@@ -6,6 +6,21 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Added — `egghouse.swdb` SWPC real-time parsers
+
+- `parse_xray`, `parse_proton`, `parse_solar_wind`, `parse_kp_1m`,
+  `parse_kp_forecast`, `parse_solar_probabilities`, `parse_alerts`,
+  `parse_3day_forecast` (new module `egghouse.swdb.swpc`) — pure pandas parsers
+  for NOAA SWPC real-time JSON products into `rt_*` / `swpc_*` table rows.
+  Promoted from `solaris-data`'s `core/swpc.py` so every SOLARIS sub-project
+  shares one tested implementation. Re-exported from `egghouse.swdb`.
+- Parsers are pure (pandas only, no DB), but importing them via `egghouse.swdb`
+  currently still pulls the DB-backed `register`/`query` submodules; the
+  `swdb/__init__` lazy-import cleanup is tracked separately.
+- Migration: `from core.swpc import parse_xray` still works (`solaris-data`
+  keeps a re-export shim); new code should use
+  `from egghouse.swdb import parse_xray` (or `egghouse.swdb.swpc`).
+
 ### Added — generic correlation / dB metrics (`egghouse.image.metrics`)
 
 Promoted from `lolipop` (duplicated across its evaluation metrics):
