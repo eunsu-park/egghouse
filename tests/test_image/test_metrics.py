@@ -161,3 +161,52 @@ def test_weak_signal_contrast_degenerate_constant_inputs():
     # Both flat → gradient maps both zero → defined as 1.0 (perfectly equal).
     flat = np.zeros((32, 32))
     assert metrics.weak_signal_contrast(flat, flat) == 1.0
+
+
+# --- pearson_corr ---
+
+
+def test_pearson_corr_identical_is_one():
+    rng = np.random.default_rng(0)
+    a = rng.standard_normal((16, 16))
+    assert metrics.pearson_corr(a, a) == pytest.approx(1.0)
+
+
+def test_pearson_corr_anticorrelated_is_minus_one():
+    rng = np.random.default_rng(1)
+    a = rng.standard_normal((16, 16))
+    assert metrics.pearson_corr(a, -a) == pytest.approx(-1.0)
+
+
+def test_pearson_corr_constant_input_is_nan():
+    a = np.arange(64.0).reshape(8, 8)
+    const = np.full((8, 8), 3.0)
+    assert np.isnan(metrics.pearson_corr(a, const))
+
+
+def test_pearson_corr_matches_manual_formula():
+    rng = np.random.default_rng(2)
+    a = rng.standard_normal(50)
+    b = 0.7 * a + 0.3 * rng.standard_normal(50)
+    sa, sb = np.std(a), np.std(b)
+    expected = float(np.mean((a - a.mean()) * (b - b.mean())) / (sa * sb))
+    assert metrics.pearson_corr(a, b) == pytest.approx(expected)
+
+
+# --- db_ratio ---
+
+
+def test_db_ratio_factor_of_ten_is_twenty_db():
+    assert metrics.db_ratio(10.0, 1.0) == pytest.approx(20.0)
+
+
+def test_db_ratio_equal_scales_is_zero_db():
+    assert metrics.db_ratio(5.0, 5.0) == pytest.approx(0.0)
+
+
+def test_db_ratio_zero_numerator_is_nan():
+    assert np.isnan(metrics.db_ratio(0.0, 1.0))
+
+
+def test_db_ratio_zero_denominator_is_inf():
+    assert metrics.db_ratio(1.0, 0.0) == float("inf")
