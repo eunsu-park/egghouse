@@ -704,6 +704,26 @@ print(f"Solar radius: {params['radius_pixels']:.1f} pixels")
 print(f"Plate scale: {params['plate_scale']:.3f} arcsec/px")
 ```
 
+### parse_fits_datetime
+
+Extract the observation datetime from a FITS file. It reads the header
+(`T_REC` → `T_OBS` → `DATE-OBS`, handling the SDO TAI form
+`YYYY.MM.DD_HH:MM:SS_TAI`, ISO `T`-separated strings, and legacy
+`DD/MM/YY` dates) and, if the header is missing or unreadable, falls back to
+parsing the SDO AIA/HMI **filename**. Returns a naive `datetime`, or `None`
+when nothing parses. TAI is not converted to UTC (~35 s difference).
+
+```python
+from egghouse.sdo import parse_fits_datetime
+
+dt = parse_fits_datetime('/data/aia.lev1_euv_12s.2010-09-01T000008Z.193.image_lev1.fits')
+# datetime.datetime(2010, 9, 1, 0, 0, 8)  (from filename if header absent)
+```
+
+`astropy` is lazy-imported (`HAS_ASTROPY`): when it is not installed the header
+path is skipped and only the filename is parsed. Promoted from `solaris-data`
+(`core/parse.py`), which keeps a re-export shim for backward compatibility.
+
 ---
 
 ## Constants

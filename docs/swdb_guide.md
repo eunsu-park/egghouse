@@ -20,6 +20,10 @@ validated metadata and DB records, and registers directories idempotently.
   validated `ValidationResult`, a flat DB row, and an archive path.
 - **`register_fits_dir`** — scans a directory tree → validates → idempotent upsert →
   (optionally) archives (moves) files.
+- **SWPC real-time parsers** (`parse_xray`, `parse_proton`, …) — pure pandas parsers
+  that turn NOAA SWPC real-time JSON products into DB-ready rows. These are a separate
+  concern from the FITS→DB image pipeline above; see the **SWPC real-time parsers**
+  section below.
 
 Only **AIA is shipped** here (the scope undine needs). Other instruments such as
 LASCO, SECCHI, and HMI are implemented in each project by subclassing `FitsHandler`.
@@ -427,3 +431,42 @@ print(report.summary())
 
 Running the same command again inserts no new rows (`inserted == 0`) thanks to the
 idempotency of `register_fits_dir`, and the report counts remain consistent.
+
+---
+
+## SWPC real-time parsers
+
+Pure pandas parsers for [NOAA SWPC](https://services.swpc.noaa.gov/) real-time
+products. Each takes the already-decoded JSON payload (or, for the 3-day
+forecast, the raw text) and returns a tidy `DataFrame` whose columns match the
+`rt_*` / `swpc_*` DB tables. They are **pure** — no network and no DB — so the
+caller fetches the payload (e.g. via `egghouse.transfer.download_json`) and
+upserts the frame (e.g. via `egghouse.database.upsert_dataframe`). All timestamps
+are normalized to **tz-naive UTC** (`_to_utc_naive`), so feeds that tag times with
+`Z` and feeds that use bare tags land at the same clock time.
+
+Promoted from `solaris-data` (`core/swpc.py`), which keeps a re-export shim
+(`from core.swpc import parse_xray`) and `parse_swpc_*` aliases for backward
+compatibility.
+
+```python
+from egghouse.swdb import parse_xray            # or: from egghouse.swdb.swpc import parse_xray
+from egghouse.transfer import download_json
+
+payload = download_json("https://services.swpc.noaa.gov/json/goes/primary/xrays-6-hour.json")
+df = parse_xray(payload)   # one row per (satellite, datetime): xrs_short_w_m2, xrs_long_w_m2
+```
+
+| Function | Input | Output (key columns) |
+|----------|-------|----------------------|
+| `parse_xray` | GOES X-ray JSON | pivots the two energy bands into one row per `(satellite, datetime)`: `xrs_short_w_m2`, `xrs_long_w_m2` |
+| `parse_proton` | GOES proton JSON | long format `[satellite, datetime, energy, flux]` |
+| `parse_solar_wind(data, kind)` | DSCOVR array-of-arrays | `kind="plasma"` → `density_p_cc`, `speed_km_s`, `temperature_k`; `kind="mag"` → `bx/by/bz_gsm_nt`, `bt_nt`; `source="DSCOVR"` |
+| `parse_kp_1m` | 1-minute Kp JSON | `datetime`, `estimated_kp` |
+| `parse_kp_forecast` | Kp forecast array | `observed_flag`, `noaa_scale` (`"null"` → `NaN` → `NULL` on upsert) |
+| `parse_solar_probabilities` | flare-probability JSON | `c/m/x_class_{1,2,3}_day`, `proton_10mev_{1,2,3}_day`, `polar_cap_absorption`, `valid_date` |
+| `parse_alerts` | alerts JSON | `product_id`, `issue_datetime`, `message` (rows with null id/time dropped) |
+| `parse_3day_forecast(text)` | forecast **text** | `issued_at` (from the `:Issued:` line), `raw_text`; empty frame if no stamp |
+
+Function signatures are listed in `API_REFERENCE.md`; behavior is covered by
+`tests/test_swdb/test_swpc.py`.

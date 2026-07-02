@@ -173,6 +173,10 @@ from egghouse.sdo import snodgrass_rotation_rate
 rate_eq = snodgrass_rotation_rate(0)    # 14.71 deg/day at equator
 rate_60 = snodgrass_rotation_rate(60)   # ~12.0 deg/day at 60° latitude
 
+# FITS observation datetime (header T_REC/T_OBS/DATE-OBS, filename fallback)
+from egghouse.sdo import parse_fits_datetime
+dt = parse_fits_datetime('aia.lev1_euv_12s.2010-09-01T000008Z.193.image_lev1.fits')
+
 # Snodgrass differential rotation is shown above; DEM lives in egghouse.dem.
 ```
 
@@ -377,7 +381,10 @@ upsert_dataframe(df, "sdo", db_config,
 Domain layer on top of `egghouse.database`. Reference schemas + FITS
 handlers + a generalized directory-registration flow, plus read queries
 (best-match resolution against the `sdo` table). AIA ships here; other
-instruments subclass `FitsHandler` in their own projects.
+instruments subclass `FitsHandler` in their own projects. Also ships pure
+pandas parsers for NOAA SWPC real-time products (`parse_xray`,
+`parse_proton`, `parse_solar_wind`, `parse_kp_1m`, `parse_kp_forecast`,
+`parse_solar_probabilities`, `parse_alerts`, `parse_3day_forecast`).
 
 ```python
 from datetime import datetime
@@ -481,9 +488,10 @@ password: password
 **Detailed Guides** (in [docs/](docs/) folder):
 - [image_guide.md](docs/image_guide.md) - Image processing utilities
 - [sdo_guide.md](docs/sdo_guide.md) - SDO/AIA/HMI data processing
+- [denoise_guide.md](docs/denoise_guide.md) - Classical, channel-agnostic image denoisers
 - [config_guide.md](docs/config_guide.md) - Configuration management
 - [database_guide.md](docs/database_guide.md) - PostgreSQL utilities (CRUD + declarative schema + bulk records)
-- [swdb_guide.md](docs/swdb_guide.md) - Solar / space-weather DB domain layer (schemas + FITS handlers + registration)
+- [swdb_guide.md](docs/swdb_guide.md) - Solar / space-weather DB domain layer (schemas + FITS handlers + registration + SWPC parsers)
 - [transfer_guide.md](docs/transfer_guide.md) - File transfer utilities (HTTP, FTP, SFTP)
 
 **API Reference:** See [API_REFERENCE.md](API_REFERENCE.md) for complete function signatures.
