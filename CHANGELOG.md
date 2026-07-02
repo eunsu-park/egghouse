@@ -6,6 +6,15 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Added — generic correlation / dB metrics (`egghouse.image.metrics`)
+
+Promoted from `lolipop` (duplicated across its evaluation metrics):
+
+- `pearson_corr(a, b)` — Pearson correlation between two arrays, returning
+  NaN when either input is constant.
+- `db_ratio(numerator, denominator)` — amplitude ratio in dB
+  (`20*log10(num/den)`), guarding zero scales (NaN / +inf).
+
 ## [0.10.0] — 2026-06-05
 
 ### Changed — DEM is now a top-level, instrument-agnostic package

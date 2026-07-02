@@ -88,6 +88,8 @@ from .metrics import (
     ssim,
     ms_ssim,
     weak_signal_contrast,
+    pearson_corr,
+    db_ratio,
 )
 
 from .transforms import (
@@ -139,6 +141,8 @@ __all__ = [
     'ssim',
     'ms_ssim',
     'weak_signal_contrast',
+    'pearson_corr',
+    'db_ratio',
     # Composable transforms
     'compose',
     'to_float32',
