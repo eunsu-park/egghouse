@@ -15,6 +15,15 @@ Promoted from `lolipop` (duplicated across its evaluation metrics):
 - `db_ratio(numerator, denominator)` — amplitude ratio in dB
   (`20*log10(num/den)`), guarding zero scales (NaN / +inf).
 
+### Added — paired augmentation (`egghouse.image.augment`)
+
+Promoted from `lolipop` (duplicated across its two Noise2Noise datasets):
+
+- `paired_random_crop(a, b, patch, rng)` — same random square crop applied
+  to an `(input, target)` pair.
+- `paired_flip_rot(a, b, rng)` — same random flip + 90-degree rotation
+  applied to both arrays, using a caller-supplied `numpy.random.Generator`.
+
 ## [0.10.0] — 2026-06-05
 
 ### Changed — DEM is now a top-level, instrument-agnostic package

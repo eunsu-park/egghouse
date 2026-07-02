@@ -9,6 +9,7 @@ Modules:
     core: Basic image transformations (resize, rotate, bytescale).
     masking: Circular and annular mask generation for solar disk analysis.
     spatial: Image padding, cropping, flipping, and rolling utilities.
+    augment: Paired random crop / flip / rotation for N2N-style training.
     filters: Gaussian, median, and edge detection filters.
     stats: Normalization, histogram operations, and image statistics.
 
@@ -92,6 +93,11 @@ from .metrics import (
     db_ratio,
 )
 
+from .augment import (
+    paired_random_crop,
+    paired_flip_rot,
+)
+
 from .transforms import (
     compose,
     to_float32,
@@ -143,6 +149,9 @@ __all__ = [
     'weak_signal_contrast',
     'pearson_corr',
     'db_ratio',
+    # Paired augmentation
+    'paired_random_crop',
+    'paired_flip_rot',
     # Composable transforms
     'compose',
     'to_float32',
