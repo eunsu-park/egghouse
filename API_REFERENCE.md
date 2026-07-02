@@ -89,6 +89,8 @@ Generic image processing utilities. Organized into submodules:
 | `ssim` | `(image, reference, *, data_range=None, win_size=11) -> float` | Single-scale structural similarity (Wang 2004) |
 | `ms_ssim` | `(image, reference, *, data_range=None, weights=None, win_size=11) -> float` | Multi-scale SSIM (Wang 2003, 5-scale) |
 | `weak_signal_contrast` | `(image, reference, *, mask=None) -> float` | Sobel gradient-magnitude correlation (weak-edge preservation, placeholder) |
+| `pearson_corr` | `(a, b) -> float` | Pearson correlation of two arrays; NaN if either is constant |
+| `db_ratio` | `(numerator, denominator) -> float` | Amplitude ratio in dB (`20*log10`); NaN/`+inf` guards for zero scales |
 
 ### Transforms (v0.9+)
 

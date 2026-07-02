@@ -259,3 +259,47 @@ def weak_signal_contrast(
     if std_img == 0.0 or std_ref == 0.0:
         return 0.0
     return float(np.corrcoef(g_img, g_ref)[0, 1])
+
+
+def pearson_corr(a: np.ndarray, b: np.ndarray) -> float:
+    """Pearson correlation between two arrays, guarding constant inputs.
+
+    Flattens `a` and `b` and returns their Pearson correlation
+    coefficient, computed as ``mean((a-a.mean())*(b-b.mean())) /
+    (std(a)*std(b))``. Returns NaN when either input has zero standard
+    deviation (a constant array), for which the correlation is undefined.
+
+    Args:
+      a: First array (any shape; flattened).
+      b: Second array, broadcast-flattened to match `a`.
+
+    Returns:
+      The Pearson correlation in [-1, 1], or NaN if either input is
+      constant.
+    """
+    a = a.ravel(); b = b.ravel()
+    sa = np.std(a); sb = np.std(b)
+    if sa == 0 or sb == 0:
+        return float("nan")
+    return float(np.mean((a - a.mean()) * (b - b.mean())) / (sa * sb))
+
+
+def db_ratio(numerator: float, denominator: float) -> float:
+    """Amplitude ratio of two scales in decibels: ``20*log10(num/den)``.
+
+    Handy for expressing noise reduction — e.g. the ratio of a raw noise
+    scale to a denoised one, in dB (amplitude convention, factor 20).
+
+    Args:
+      numerator: The reference (e.g. raw) scale.
+      denominator: The comparison (e.g. denoised) scale.
+
+    Returns:
+      ``20*log10(numerator/denominator)``; NaN if `numerator` is 0;
+      +inf if `denominator` is 0 (and `numerator` != 0).
+    """
+    if numerator == 0:
+        return float("nan")
+    if denominator == 0:
+        return float("inf")
+    return 20.0 * float(np.log10(numerator / denominator))
