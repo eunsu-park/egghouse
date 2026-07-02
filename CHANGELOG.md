@@ -6,6 +6,23 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Added — `egghouse.sdo` FITS-datetime parser
+
+- `parse_fits_datetime(file_path)` (new module `egghouse.sdo.timeparse`) —
+  extracts the observation datetime from a FITS header (T_REC / T_OBS /
+  DATE-OBS, incl. SDO TAI and legacy DD/MM/YY formats) and falls back to
+  parsing the SDO AIA/HMI filename. Astropy is lazy-imported (`HAS_ASTROPY`);
+  the header path is skipped and filename parsing is used when astropy is
+  absent. Re-exported from `egghouse.sdo`.
+- Promoted verbatim from `solaris-data`'s `core/parse.py` so SOLARIS
+  sub-projects reading SDO FITS share one tested implementation. The
+  overlapping SDO-specific string parsers (`_parse_t_rec` / `_parse_obs_time`
+  in `core/sdo.py`) were intentionally **not** merged — their format lists
+  differ and merging would change outputs.
+- Migration: `from core.parse import parse_fits_datetime` still works
+  (`solaris-data` keeps a re-export shim); new code should use
+  `from egghouse.sdo import parse_fits_datetime`.
+
 ### Added — `egghouse.swdb` SWPC real-time parsers
 
 - `parse_xray`, `parse_proton`, `parse_solar_wind`, `parse_kp_1m`,

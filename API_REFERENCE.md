@@ -179,6 +179,7 @@ SDO/AIA and SDO/HMI data processing utilities.
 | `parse_fits_header` | `(filepath) -> dict` | Extract SDO FITS header keywords |
 | `validate_sdo_image` | `(image, expected_shape=(4096,4096)) -> bool` | Validate SDO image dimensions |
 | `get_solar_disk_params` | `(header) -> dict` | Calculate solar disk center/radius from header |
+| `parse_fits_datetime` | `(file_path) -> datetime \| None` | Observation datetime from FITS header (T_REC/T_OBS/DATE-OBS), filename fallback (astropy lazy) |
 
 ### Level 1.5
 

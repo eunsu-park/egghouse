@@ -85,6 +85,7 @@ from .dem_response import (
     AIA_DEM_WAVELENGTHS,
     HAS_AIAPY,
 )
+from .timeparse import parse_fits_datetime
 
 __all__ = [
     # AIA
@@ -99,6 +100,8 @@ __all__ = [
     'validate_sdo_image',
     'get_solar_disk_params',
     'HAS_ASTROPY',
+    # FITS datetime parsing
+    'parse_fits_datetime',
     # Level 1.5
     'to_level15',
     'batch_to_level15',
