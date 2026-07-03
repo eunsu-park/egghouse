@@ -21,8 +21,6 @@ Only AIA ships here (what undine needs). Other instruments subclass
 from .result import ValidationResult
 from .schemas import SDO_SCHEMA, LASCO_SCHEMA, SECCHI_SCHEMA
 from .handlers import FitsHandler, AiaFitsHandler, AIA_EUV_WAVELENGTHS
-from .register import register_fits_dir, scan_fits, RegisterReport
-from .query import get_sdo_best_match, get_sdo_best_matches
 from .swpc import (
     parse_xray,
     parse_proton,
@@ -56,3 +54,29 @@ __all__ = [
     "parse_alerts",
     "parse_3day_forecast",
 ]
+
+# `register`/`query` pull in `egghouse.database` (→ psycopg2). Load them
+# lazily so the pure NOAA SWPC parsers (`egghouse.swdb.swpc`) — and this
+# package's schemas/handlers — import without the `[database]` extra, per
+# egghouse's guard-heavy-optional-deps convention. Consumers that use the
+# DB side (`get_sdo_best_match`, `register_fits_dir`, …) resolve unchanged
+# on first attribute access; psycopg2 is only required then.
+_LAZY = {
+    "register_fits_dir": "register",
+    "scan_fits": "register",
+    "RegisterReport": "register",
+    "get_sdo_best_match": "query",
+    "get_sdo_best_matches": "query",
+}
+
+
+def __getattr__(name):
+    module = _LAZY.get(name)
+    if module is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    from importlib import import_module
+    return getattr(import_module(f".{module}", __name__), name)
+
+
+def __dir__():
+    return sorted(__all__)

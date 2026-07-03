@@ -6,6 +6,20 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Changed — `egghouse.swdb` lazy-loads its DB submodules
+
+- `egghouse.swdb.__init__` no longer eagerly imports `register` / `query`
+  (which pull in `egghouse.database` → psycopg2). They are now resolved
+  lazily via module `__getattr__` on first attribute access. This lets the
+  pure NOAA SWPC parsers (`egghouse.swdb.swpc`) and the package schemas /
+  handlers import **without** the `[database]` extra, matching egghouse's
+  guard-heavy-optional-deps convention (as `sdo` / `transfer` already do).
+- Backward compatible: `from egghouse.swdb import get_sdo_best_match`,
+  `register_fits_dir`, `scan_fits`, `RegisterReport`, `get_sdo_best_matches`
+  resolve unchanged when psycopg2 is installed; only then is it required.
+  Verified: consumers are `undine` (`get_sdo_best_match`) and `solaris-data`
+  (`core/query.py`) — both use lazy symbols and keep working.
+
 ### Added — `egghouse.sdo` FITS-datetime parser
 
 - `parse_fits_datetime(file_path)` (new module `egghouse.sdo.timeparse`) —
@@ -31,9 +45,9 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
   for NOAA SWPC real-time JSON products into `rt_*` / `swpc_*` table rows.
   Promoted from `solaris-data`'s `core/swpc.py` so every SOLARIS sub-project
   shares one tested implementation. Re-exported from `egghouse.swdb`.
-- Parsers are pure (pandas only, no DB), but importing them via `egghouse.swdb`
-  currently still pulls the DB-backed `register`/`query` submodules; the
-  `swdb/__init__` lazy-import cleanup is tracked separately.
+- Parsers are pure (pandas only, no DB). Importing them via `egghouse.swdb`
+  no longer forces psycopg2 — the DB-backed `register`/`query` submodules are
+  lazy-loaded (see the `### Changed` entry above).
 - Migration: `from core.swpc import parse_xray` still works (`solaris-data`
   keeps a re-export shim); new code should use
   `from egghouse.swdb import parse_xray` (or `egghouse.swdb.swpc`).
