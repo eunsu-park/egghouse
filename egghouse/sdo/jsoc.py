@@ -133,7 +133,7 @@ def cached_correction_table(path: Union[str, os.PathLike]) -> "Table":
     """Load (or fetch and cache) the aiapy degradation correction table.
 
     The first call fetches the table from JSOC via
-    `aiapy.calibrate.util.get_correction_table` and pickles it to
+    `aiapy.calibrate.utils.get_correction_table` and pickles it to
     ``path``. Subsequent calls deserialize from disk and skip the
     network round-trip.
 
@@ -182,7 +182,7 @@ def cached_pointing_table(
     if path.is_file():
         with open(path, "rb") as f:
             return pickle.load(f)
-    from aiapy.calibrate.util import get_pointing_table
+    from aiapy.calibrate.utils import get_pointing_table
     from astropy.time import Time
 
     table = get_pointing_table(Time(start), Time(end))
