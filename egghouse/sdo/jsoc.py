@@ -185,7 +185,9 @@ def cached_pointing_table(
     from aiapy.calibrate.utils import get_pointing_table
     from astropy.time import Time
 
-    table = get_pointing_table(Time(start), Time(end))
+    # aiapy >= 0.10 takes (source, time_range=...) rather than (start, end).
+    # "jsoc" is the authoritative source and requires an explicit time range.
+    table = get_pointing_table("jsoc", time_range=Time([start, end]))
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "wb") as f:
         pickle.dump(table, f)
