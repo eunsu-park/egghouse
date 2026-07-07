@@ -95,6 +95,8 @@ Notes:
 A typical full-calibration order for one EUV record:
 
 ```python
+from datetime import datetime
+
 from egghouse.sdo import to_level15
 from egghouse.sdo.prep import (
     aia_update_pointing, aia_respike, aia_correct_degradation, aia_deconvolve,
@@ -102,7 +104,13 @@ from egghouse.sdo.prep import (
 )
 from egghouse.sdo.jsoc import cached_correction_table, cached_pointing_table
 
-pointing = cached_pointing_table("cache/pointing.pkl")
+# The pointing table is time-bound: start/end are keyword-only and only used
+# when the cache file is first populated (end is exclusive, aiapy convention).
+pointing = cached_pointing_table(
+    "cache/pointing.pkl",
+    start=datetime(2014, 1, 1),
+    end=datetime(2014, 1, 2),
+)
 corr = cached_correction_table("cache/correction.pkl")
 psfs = cached_aia_psfs("cache/psfs.pkl")
 
