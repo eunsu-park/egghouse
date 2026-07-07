@@ -119,29 +119,24 @@ def aia_color_lut(wavelength: int, source: str = "numpy") -> np.ndarray:
     """
     Return the official AIA color table for a channel as a 256-entry RGB LUT.
 
-    Parameters
-    ----------
-    wavelength : int
-        AIA channel in Angstrom. One of
-        ``94, 131, 171, 193, 211, 304, 335, 1600, 1700, 4500``.
-    source : {'numpy', 'sunpy'}, optional
-        Which implementation builds the LUT (default ``'numpy'``):
+    Args:
+        wavelength: AIA channel in Angstrom. One of
+            ``94, 131, 171, 193, 211, 304, 335, 1600, 1700, 4500``.
+        source: Which implementation builds the LUT (default ``'numpy'``):
 
-        - ``'numpy'``: pure-NumPy reproduction, no optional dependency.
-        - ``'sunpy'``: sunpy's reference ``aia_color_table`` (requires sunpy).
+            - ``'numpy'``: pure-NumPy reproduction, no optional dependency.
+            - ``'sunpy'``: sunpy's reference ``aia_color_table`` (requires
+              sunpy).
 
-        Both return the same values.
+            Both return the same values.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         LUT of shape (256, 3), dtype uint8. Row ``i`` is the ``(R, G, B)``
         color for 8-bit intensity ``i``. Cached per ``(wavelength, source)``.
 
-    Raises
-    ------
-    ValueError
-        If ``wavelength`` has no AIA color table or ``source`` is unknown.
+    Raises:
+        ValueError: If ``wavelength`` has no AIA color table or ``source`` is
+            unknown.
     """
     wavelength = int(np.rint(wavelength))
     if source not in ("numpy", "sunpy"):
@@ -162,15 +157,11 @@ def aia_colormap(wavelength: int) -> "object":
     ``sunpy`` dependency. For raw pixel-level colorization prefer
     :func:`aia_color_lut` / :func:`aia_colorize`, which have a pure-NumPy path.
 
-    Parameters
-    ----------
-    wavelength : int
-        AIA channel in Angstrom.
+    Args:
+        wavelength: AIA channel in Angstrom.
 
-    Returns
-    -------
-    matplotlib.colors.Colormap
-        The ``SDO AIA <wavelength>`` colormap.
+    Returns:
+        The ``SDO AIA <wavelength>`` matplotlib ``Colormap``.
     """
     try:
         import astropy.units as u
@@ -207,32 +198,24 @@ def aia_colorize(
     - Already 8-bit grayscale (``exptime=None``): the image is colorized
       directly. Non-uint8 input is min/max byte-scaled first.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        2D AIA image: raw counts (with ``exptime``) or an 8-bit grayscale
-        display image (without ``exptime``).
-    wavelnth : int
-        AIA channel in Angstrom (selects both the intensity scaling and the
-        color table).
-    exptime : float, optional
-        Exposure time in seconds (FITS ``EXPTIME``). If given, ``image`` is
-        treated as raw and intensity-scaled first.
-    source : {'numpy', 'sunpy'}, optional
-        Color-table source, see :func:`aia_color_lut`.
+    Args:
+        image: 2D AIA image: raw counts (with ``exptime``) or an 8-bit
+            grayscale display image (without ``exptime``).
+        wavelnth: AIA channel in Angstrom (selects both the intensity scaling
+            and the color table).
+        exptime: Exposure time in seconds (FITS ``EXPTIME``). If given,
+            ``image`` is treated as raw and intensity-scaled first.
+        source: Color-table source, see :func:`aia_color_lut`.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Colorized RGB image of shape ``(*image.shape, 3)``, dtype uint8.
 
-    Examples
-    --------
-    >>> import numpy as np
-    >>> raw = np.linspace(0, 4000, 64 * 64).reshape(64, 64)
-    >>> rgb = aia_colorize(raw, 171, exptime=2.9)
-    >>> rgb.shape, rgb.dtype
-    ((64, 64, 3), dtype('uint8'))
+    Example:
+        >>> import numpy as np
+        >>> raw = np.linspace(0, 4000, 64 * 64).reshape(64, 64)
+        >>> rgb = aia_colorize(raw, 171, exptime=2.9)
+        >>> rgb.shape, rgb.dtype
+        ((64, 64, 3), dtype('uint8'))
     """
     from ..image import bytescale_image
     from ..image.colorize import apply_colormap

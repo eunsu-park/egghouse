@@ -16,8 +16,7 @@ inversion.  The posterior-mean DEM is returned, and the posterior standard
 deviation per temperature is reported in ``info["dem_std"]`` -- quantifying the
 uncertainty is the whole point of the MCMC approach.
 
-References
-----------
+References:
 - Kashyap, V. & Drake, J. J. 1998, ApJ 503, 450, DOI 10.1086/305964 --
   Markov-Chain Monte Carlo reconstruction of the emission measure
   distribution with uncertainties.
@@ -130,50 +129,34 @@ def dem_mcmc(
 ) -> Tuple[np.ndarray, Dict]:
     """Metropolis-Hastings MCMC DEM inversion (single pixel or batch).
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
-        ``(n_pixels, n_channels)``.
-    errors : np.ndarray
-        1-sigma uncertainties, same shape as ``intensities``.
-    response : np.ndarray
-        Temperature response, shape ``(n_temps, n_channels)`` (same
-        convention as :func:`egghouse.dem.dem_nnls`).
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_temps,)``.
-    n_steps : int
-        Total Metropolis steps per pixel (including burn-in).
-    n_burn : int
-        Burn-in steps discarded before collecting samples.
-    seed : int
-        Base RNG seed for reproducibility (each pixel offset by its index).
-    proposal_scale : float
-        Std of the Gaussian random-walk proposal in dex (log10 DEM units).
-    n_block : int
-        Number of contiguous temperature bins perturbed per step.
-    smooth : float
-        Weight of the second-difference smoothness prior on log10(DEM).
-        Set to 0 to disable.
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
+            ``(n_pixels, n_channels)``.
+        errors: 1-sigma uncertainties, same shape as ``intensities``.
+        response: Temperature response, shape ``(n_temps, n_channels)`` (same
+            convention as :func:`egghouse.dem.dem_nnls`).
+        temperatures: Temperatures in Kelvin, shape ``(n_temps,)``.
+        n_steps: Total Metropolis steps per pixel (including burn-in).
+        n_burn: Burn-in steps discarded before collecting samples.
+        seed: Base RNG seed for reproducibility (each pixel offset by its index).
+        proposal_scale: Std of the Gaussian random-walk proposal in dex (log10 DEM units).
+        n_block: Number of contiguous temperature bins perturbed per step.
+        smooth: Weight of the second-difference smoothness prior on log10(DEM).
+            Set to 0 to disable.
 
-    Returns
-    -------
-    dem : np.ndarray
-        Posterior-mean DEM in cm^-5 K^-1, shape ``(n_temps,)`` or
-        ``(n_pixels, n_temps)``.
-    info : dict
-        ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), and ``dem_std``
-        (posterior std per temperature; same shape as ``dem``).
+    Returns:
+        dem: Posterior-mean DEM in cm^-5 K^-1, shape ``(n_temps,)`` or
+            ``(n_pixels, n_temps)``.
+        info: ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), and ``dem_std``
+            (posterior std per temperature; same shape as ``dem``).
 
-    References
-    ----------
-    Kashyap, V. & Drake, J. J. 1998, ApJ 503, 450, DOI 10.1086/305964.
+    References:
+        Kashyap, V. & Drake, J. J. 1998, ApJ 503, 450, DOI 10.1086/305964.
 
-    Notes
-    -----
-    This is a per-pixel sampler and is slow; batch input is handled by simply
-    looping over pixels.  It is intended for small regions or single-pixel
-    uncertainty studies, not full-disk maps.
+    Note:
+        This is a per-pixel sampler and is slow; batch input is handled by simply
+        looping over pixels.  It is intended for small regions or single-pixel
+        uncertainty studies, not full-disk maps.
     """
     if n_burn >= n_steps:
         raise ValueError(f"n_burn ({n_burn}) must be < n_steps ({n_steps})")

@@ -23,16 +23,11 @@ _MAD_TO_SIGMA = 1.4826
 def mad(x: np.ndarray, *, center: float | None = None) -> float:
     """Median absolute deviation about the median.
 
-    Parameters
-    ----------
-    x : np.ndarray
-        Input array (any shape; flattened).
-    center : float, optional
-        Value to deviate about. Defaults to ``median(x)``.
+    Args:
+        x: Input array (any shape; flattened).
+        center: Value to deviate about. Defaults to ``median(x)``.
 
-    Returns
-    -------
-    float
+    Returns:
         ``median(|x - center|)``. Zero for a constant array.
     """
     a = np.asarray(x, dtype=np.float64)
@@ -46,16 +41,11 @@ def robust_sigma(x: np.ndarray, *, center: float | None = None) -> float:
     Returns ``1.4826 * MAD(x)``, the MAD scaled to match the standard
     deviation for Gaussian-distributed data. Robust to outliers.
 
-    Parameters
-    ----------
-    x : np.ndarray
-        Input array.
-    center : float, optional
-        Value to deviate about. Defaults to ``median(x)``.
+    Args:
+        x: Input array.
+        center: Value to deviate about. Defaults to ``median(x)``.
 
-    Returns
-    -------
-    float
+    Returns:
         The robust sigma estimate. Zero for a constant array.
     """
     return _MAD_TO_SIGMA * mad(x, center=center)
@@ -86,22 +76,15 @@ def gaussian_core_sigma(
     parabola for Gaussian data, so a count-weighted quadratic least-squares
     fit recovers ``sigma = sqrt(-1 / (2 a2))`` from its leading coefficient.
 
-    Parameters
-    ----------
-    x : np.ndarray
-        Input array (any shape; flattened). NaNs are ignored.
-    bins : int, optional
-        Number of histogram bins across the fit window. Default 201.
-    n_sigma : float, optional
-        Half-width of the fit window in units of the initial robust sigma.
-        Default 2.5 — wide enough for a stable fit, narrow enough to exclude
-        the real-field wings.
-    center : float, optional
-        Histogram centre. Defaults to ``median(x)``.
+    Args:
+        x: Input array (any shape; flattened). NaNs are ignored.
+        bins: Number of histogram bins across the fit window. Default 201.
+        n_sigma: Half-width of the fit window in units of the initial robust
+            sigma. Default 2.5 — wide enough for a stable fit, narrow enough to
+            exclude the real-field wings.
+        center: Histogram centre. Defaults to ``median(x)``.
 
-    Returns
-    -------
-    float
+    Returns:
         The fitted Gaussian sigma. Falls back to :func:`robust_sigma` when the
         core is degenerate (constant array, too few pixels, or a non-concave
         log-histogram). Zero for a constant array.
@@ -148,17 +131,15 @@ def photon_transfer_fit(
     read-noise variance. Used to recover the per-channel parameters a
     generalized Anscombe variance-stabilizing transform needs.
 
-    Parameters
-    ----------
-    intensity, variance : np.ndarray
-        Matched samples of intensity and noise variance (e.g. one point per
-        intensity bin). Flattened; non-finite pairs are dropped.
-    weights : np.ndarray, optional
-        Per-sample fit weights (e.g. pixel counts per bin). Defaults to equal.
+    Args:
+        intensity, variance: Matched samples of intensity and noise variance
+            (e.g. one point per intensity bin). Flattened; non-finite pairs are
+            dropped.
+        weights: Per-sample fit weights (e.g. pixel counts per bin). Defaults
+            to equal.
 
-    Returns
-    -------
-    (g, r2, r_squared)
+    Returns:
+        (g, r2, r_squared)
         Slope, intercept, and coefficient of determination. ``(nan, nan, nan)``
         if fewer than two valid points remain.
     """
@@ -181,16 +162,12 @@ def photon_transfer_fit(
 class PoissonGaussianNoise(NamedTuple):
     """Result of :func:`poisson_gaussian_noise`.
 
-    Attributes
-    ----------
-    g : float
-        Variance slope (gain; variance per unit intensity).
-    r2 : float
-        Read-noise variance (intercept at zero intensity).
-    r_squared : float
-        Goodness of fit of ``variance = g * intensity + r2``.
-    intensity, variance, count : np.ndarray
-        Per-bin mean intensity, estimated noise variance, and pixel count.
+    Attributes:
+        g: Variance slope (gain; variance per unit intensity).
+        r2: Read-noise variance (intercept at zero intensity).
+        r_squared: Goodness of fit of ``variance = g * intensity + r2``.
+        intensity, variance, count: Per-bin mean intensity, estimated noise
+            variance, and pixel count.
     """
 
     g: float
@@ -223,24 +200,16 @@ def poisson_gaussian_noise(
     is Poisson-dominated and this, not a single-frame histogram width, is the
     appropriate estimator.
 
-    Parameters
-    ----------
-    a, b : np.ndarray
-        Two noisy frames of the same scene, identical shape and exposure.
-    bins : int, optional
-        Number of log-spaced intensity bins. Default 30.
-    intensity_range : (float, float), optional
-        ``(lo, hi)`` intensity range for the bins. Defaults to the 1st-99.9th
-        percentiles of the positive intensities.
-    clip : float, optional
-        Drop pixels whose ``|D|`` exceeds ``clip`` robust sigmas (transients /
-        cosmic rays). ``None`` disables clipping. Default 6.0.
-    min_count : int, optional
-        Minimum pixels per bin for a bin to enter the fit. Default 1.
+    Args:
+        a, b: Two noisy frames of the same scene, identical shape and exposure.
+        bins: Number of log-spaced intensity bins. Default 30.
+        intensity_range: ``(lo, hi)`` intensity range for the bins. Defaults to
+            the 1st-99.9th percentiles of the positive intensities.
+        clip: Drop pixels whose ``|D|`` exceeds ``clip`` robust sigmas
+            (transients / cosmic rays). ``None`` disables clipping. Default 6.0.
+        min_count: Minimum pixels per bin for a bin to enter the fit. Default 1.
 
-    Returns
-    -------
-    PoissonGaussianNoise
+    Returns:
         ``(g, r2, r_squared, intensity, variance, count)``.
     """
     a = np.asarray(a, dtype=np.float64).ravel()

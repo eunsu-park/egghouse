@@ -52,59 +52,44 @@ def dem_map(
     Processes a multi-wavelength image cube pixel-by-pixel (with chunking
     for memory efficiency) to produce a DEM map.
 
-    Parameters
-    ----------
-    image_cube : np.ndarray
-        Multi-wavelength image cube, shape (height, width, n_channels).
-        Values should be in DN/s/pixel.
-    error_cube : np.ndarray
-        Uncertainty cube, same shape as image_cube.
-    response : np.ndarray
-        Temperature response matrix, shape (n_temps, n_channels).
-    temperatures : np.ndarray
-        Temperature array in Kelvin.
-    mask : np.ndarray, optional
-        Boolean mask, shape (height, width). True = process pixel.
-        Default: process all pixels.
-    chunk_size : int, optional
-        Chunk size for batch processing. Default: 512.
-    max_iter : int, optional
-        Maximum iterations for SITES. Default: 100.
-    tol : float, optional
-        Convergence tolerance. Default: 1e-3.
-    progress_callback : callable, optional
-        Progress callback function(current, total).
+    Args:
+        image_cube: Multi-wavelength image cube, shape (height, width, n_channels).
+            Values should be in DN/s/pixel.
+        error_cube: Uncertainty cube, same shape as image_cube.
+        response: Temperature response matrix, shape (n_temps, n_channels).
+        temperatures: Temperature array in Kelvin.
+        mask: Boolean mask, shape (height, width). True = process pixel.
+            Default: process all pixels.
+        chunk_size: Chunk size for batch processing. Default: 512.
+        max_iter: Maximum iterations for SITES. Default: 100.
+        tol: Convergence tolerance. Default: 1e-3.
+        progress_callback: Progress callback function(current, total).
 
-    Returns
-    -------
-    dem_cube : np.ndarray
-        DEM map, shape (height, width, n_temps).
-        Units: cm^-5 K^-1.
-    info : dict
-        Processing information:
-        - "n_pixels": total pixels processed
-        - "n_converged": pixels that converged
-        - "mean_iterations": average iterations per pixel
-        - "chi2_map": chi-squared map, shape (height, width)
+    Returns:
+        dem_cube: DEM map, shape (height, width, n_temps).
+            Units: cm^-5 K^-1.
+        info: Processing information:
+            - "n_pixels": total pixels processed
+            - "n_converged": pixels that converged
+            - "mean_iterations": average iterations per pixel
+            - "chi2_map": chi-squared map, shape (height, width)
 
-    Notes
-    -----
-    Memory estimation for 4096x4096 image:
-    - Input: ~400 MB (6 channels, float32)
-    - Output: ~6.5 GB (100 temperatures, float64)
-    - Peak during processing: ~2 GB (with chunk_size=512)
+    Note:
+        Memory estimation for 4096x4096 image:
+        - Input: ~400 MB (6 channels, float32)
+        - Output: ~6.5 GB (100 temperatures, float64)
+        - Peak during processing: ~2 GB (with chunk_size=512)
 
-    Examples
-    --------
-    >>> import numpy as np
-    >>> from egghouse.dem import get_temperature_response, get_default_temperatures
-    >>> temps = get_default_temperatures(n_bins=50)
-    >>> response = get_temperature_response(temperatures=temps)
-    >>> images = np.random.rand(256, 256, 6).astype(np.float32) * 100
-    >>> errors = images * 0.1
-    >>> dem_cube, info = dem_map(images, errors, response, temps)
-    >>> dem_cube.shape
-    (256, 256, 50)
+    Example:
+        >>> import numpy as np
+        >>> from egghouse.dem import get_temperature_response, get_default_temperatures
+        >>> temps = get_default_temperatures(n_bins=50)
+        >>> response = get_temperature_response(temperatures=temps)
+        >>> images = np.random.rand(256, 256, 6).astype(np.float32) * 100
+        >>> errors = images * 0.1
+        >>> dem_cube, info = dem_map(images, errors, response, temps)
+        >>> dem_cube.shape
+        (256, 256, 50)
     """
     # Input validation
     if image_cube.ndim != 3:
@@ -265,25 +250,16 @@ def compute_dem_errors(
     Perturbs input intensities by their uncertainties and re-runs
     the inversion to estimate DEM errors.
 
-    Parameters
-    ----------
-    dem : np.ndarray
-        DEM solution, shape (n_temps,) or (n_pixels, n_temps).
-    intensities : np.ndarray
-        Original intensities.
-    errors : np.ndarray
-        Intensity uncertainties.
-    response : np.ndarray
-        Temperature response matrix.
-    temperatures : np.ndarray
-        Temperature array.
-    n_monte_carlo : int, optional
-        Number of Monte Carlo samples. Default: 100.
+    Args:
+        dem: DEM solution, shape (n_temps,) or (n_pixels, n_temps).
+        intensities: Original intensities.
+        errors: Intensity uncertainties.
+        response: Temperature response matrix.
+        temperatures: Temperature array.
+        n_monte_carlo: Number of Monte Carlo samples. Default: 100.
 
-    Returns
-    -------
-    dem_errors : np.ndarray
-        DEM 1-sigma uncertainties, same shape as dem.
+    Returns:
+        dem_errors: DEM 1-sigma uncertainties, same shape as dem.
     """
     dem = np.atleast_2d(dem)
     intensities = np.atleast_2d(intensities)
@@ -324,30 +300,22 @@ def get_emission_measure(
 
     EM = integral(DEM * dT)
 
-    Parameters
-    ----------
-    dem : np.ndarray
-        DEM solution, shape (n_temps,) or (..., n_temps).
-    temperatures : np.ndarray
-        Temperature array in Kelvin.
-    t_min : float, optional
-        Minimum temperature for integration. Default: all.
-    t_max : float, optional
-        Maximum temperature for integration. Default: all.
+    Args:
+        dem: DEM solution, shape (n_temps,) or (..., n_temps).
+        temperatures: Temperature array in Kelvin.
+        t_min: Minimum temperature for integration. Default: all.
+        t_max: Maximum temperature for integration. Default: all.
 
-    Returns
-    -------
-    em : float or np.ndarray
-        Total emission measure in cm^-5.
+    Returns:
+        em: Total emission measure in cm^-5.
 
-    Examples
-    --------
-    >>> import numpy as np
-    >>> temps = np.logspace(5.5, 7.5, 50)
-    >>> dem = np.exp(-((np.log10(temps) - 6.2) / 0.3) ** 2) * 1e22
-    >>> em = get_emission_measure(dem, temps)
-    >>> em > 0
-    True
+    Example:
+        >>> import numpy as np
+        >>> temps = np.logspace(5.5, 7.5, 50)
+        >>> dem = np.exp(-((np.log10(temps) - 6.2) / 0.3) ** 2) * 1e22
+        >>> em = get_emission_measure(dem, temps)
+        >>> em > 0
+        True
     """
     # Temperature bin widths
     logt = np.log10(temperatures)
@@ -378,29 +346,22 @@ def get_mean_temperature(
     """
     Compute DEM-weighted mean temperature.
 
-    Parameters
-    ----------
-    dem : np.ndarray
-        DEM solution, shape (n_temps,) or (..., n_temps).
-    temperatures : np.ndarray
-        Temperature array in Kelvin.
-    weight : str, optional
-        Weighting scheme: "dem" (DEM-weighted) or "em" (EM-weighted).
-        Default: "dem".
+    Args:
+        dem: DEM solution, shape (n_temps,) or (..., n_temps).
+        temperatures: Temperature array in Kelvin.
+        weight: Weighting scheme: "dem" (DEM-weighted) or "em" (EM-weighted).
+            Default: "dem".
 
-    Returns
-    -------
-    t_mean : float or np.ndarray
-        Mean temperature in Kelvin.
+    Returns:
+        t_mean: Mean temperature in Kelvin.
 
-    Examples
-    --------
-    >>> import numpy as np
-    >>> temps = np.logspace(5.5, 7.5, 50)
-    >>> dem = np.exp(-((np.log10(temps) - 6.2) / 0.3) ** 2) * 1e22
-    >>> t_mean = get_mean_temperature(dem, temps)
-    >>> 1e6 < t_mean < 2e6
-    True
+    Example:
+        >>> import numpy as np
+        >>> temps = np.logspace(5.5, 7.5, 50)
+        >>> dem = np.exp(-((np.log10(temps) - 6.2) / 0.3) ** 2) * 1e22
+        >>> t_mean = get_mean_temperature(dem, temps)
+        >>> 1e6 < t_mean < 2e6
+        True
     """
     # Temperature bin widths
     logt = np.log10(temperatures)
@@ -436,17 +397,12 @@ def get_peak_temperature(
     """
     Get temperature at DEM peak.
 
-    Parameters
-    ----------
-    dem : np.ndarray
-        DEM solution, shape (n_temps,) or (..., n_temps).
-    temperatures : np.ndarray
-        Temperature array in Kelvin.
+    Args:
+        dem: DEM solution, shape (n_temps,) or (..., n_temps).
+        temperatures: Temperature array in Kelvin.
 
-    Returns
-    -------
-    t_peak : float or np.ndarray
-        Peak temperature in Kelvin.
+    Returns:
+        t_peak: Peak temperature in Kelvin.
     """
     if dem.ndim == 1:
         idx = np.argmax(dem)
@@ -467,24 +423,17 @@ def dem_to_loci(
     The EM loci method provides upper limits on DEM by computing
     EM_loci(T) = I / K(T) for each channel.
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities, shape (n_channels,).
-    response : np.ndarray
-        Temperature response, shape (n_temps, n_channels).
-    temperatures : np.ndarray
-        Temperature array.
+    Args:
+        intensities: Observed intensities, shape (n_channels,).
+        response: Temperature response, shape (n_temps, n_channels).
+        temperatures: Temperature array.
 
-    Returns
-    -------
-    loci : np.ndarray
-        EM loci curves, shape (n_temps, n_channels).
+    Returns:
+        loci: EM loci curves, shape (n_temps, n_channels).
 
-    Notes
-    -----
-    The intersection of EM loci curves indicates the approximate
-    DEM distribution. This is useful for quick visualization.
+    Note:
+        The intersection of EM loci curves indicates the approximate
+        DEM distribution. This is useful for quick visualization.
     """
     # Avoid division by zero
     response_safe = np.maximum(response, 1e-30)

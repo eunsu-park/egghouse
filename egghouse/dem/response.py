@@ -54,17 +54,13 @@ def get_default_temperatures(
 ) -> np.ndarray:
     """Get a default temperature array (Kelvin) for DEM analysis.
 
-    Parameters
-    ----------
-    logt_min, logt_max : float
-        log10(T/K) range (default 5.5 .. 7.5).
-    n_bins : int
-        Number of temperature points (default 100).
+    Args:
+        logt_min, logt_max: log10(T/K) range (default 5.5 .. 7.5).
+        n_bins: Number of temperature points (default 100).
 
-    Examples
-    --------
-    >>> get_default_temperatures().shape
-    (100,)
+    Example:
+        >>> get_default_temperatures().shape
+        (100,)
     """
     logt = np.linspace(logt_min, logt_max, n_bins)
     return 10.0 ** logt
@@ -81,22 +77,15 @@ def _fold_lines_into_channel(
 
     ``K(T) = (Omega_pix / 4pi) * sum_lines g_photon(T, line) * R(lambda_line)``
 
-    Parameters
-    ----------
-    g_photon : np.ndarray
-        Per-line contribution function in photon units, shape
-        ``(n_T, n_lines)`` (``cm^3 photon / s``).
-    line_wavelength : np.ndarray
-        Wavelength of each line, ``(n_lines,)`` Angstrom.
-    channel_wavelength, channel_response : np.ndarray
-        Channel wavelength grid (Angstrom) and wavelength response
-        (``cm^2 DN / photon``); interpolated onto the lines (0 out of grid).
-    plate_scale_sr : float
-        Pixel solid angle (steradian).
+    Args:
+        g_photon: Per-line contribution function in photon units, shape
+            ``(n_T, n_lines)`` (``cm^3 photon / s``).
+        line_wavelength: Wavelength of each line, ``(n_lines,)`` Angstrom.
+        channel_wavelength, channel_response: Channel wavelength grid (Angstrom) and wavelength response
+            (``cm^2 DN / photon``); interpolated onto the lines (0 out of grid).
+        plate_scale_sr: Pixel solid angle (steradian).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         ``(n_T,)`` in ``DN cm^5 s^-1 pixel^-1``.
     """
     r_at_line = np.interp(
@@ -126,35 +115,27 @@ def temperature_response_from_chianti(
     (``cm^2 DN/photon``), and ``Omega_pix`` is the pixel solid angle. Result
     in ``DN cm^5 s^-1 pixel^-1``.
 
-    Parameters
-    ----------
-    channel_responses : sequence of (wavelength_grid, response, plate_scale)
-        One tuple per channel: ``wavelength_grid`` (Angstrom),
-        ``response`` (``cm^2 DN/photon`` on that grid), ``plate_scale``
-        (steradian/pixel). The caller (instrument package) supplies these —
-        e.g. ``egghouse.sdo`` builds them from aiapy for AIA.
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_T,)``.
-    density_cm3, abundance, band :
-        CHIANTI electron density, abundance set, and the wavelength band
-        (Angstrom) over which transitions are folded (ions with no in-band
-        lines are skipped — avoids their expensive level-population solve).
+    Args:
+        channel_responses: One tuple per channel: ``wavelength_grid`` (Angstrom),
+            ``response`` (``cm^2 DN/photon`` on that grid), ``plate_scale``
+            (steradian/pixel). The caller (instrument package) supplies these —
+            e.g. ``egghouse.sdo`` builds them from aiapy for AIA.
+        temperatures: Temperatures in Kelvin, shape ``(n_T,)``.
+        density_cm3, abundance, band: CHIANTI electron density, abundance set, and the wavelength band
+            (Angstrom) over which transitions are folded (ions with no in-band
+            lines are skipped — avoids their expensive level-population solve).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         ``(n_temperatures, n_channels)``.
 
-    Notes
-    -----
-    One-time, slow (solves level populations for every contributing CHIANTI
-    ion). Persist the result. Requires the CHIANTI database (fiasco downloads
-    it on first use). Time-dependent instrument degradation is not folded in
-    here; apply it at the image level.
+    Note:
+        One-time, slow (solves level populations for every contributing CHIANTI
+        ion). Persist the result. Requires the CHIANTI database (fiasco downloads
+        it on first use). Time-dependent instrument degradation is not folded in
+        here; apply it at the image level.
 
-    References
-    ----------
-    Dere et al. (1997), A&AS 125, 149 (CHIANTI); Boerner et al. (2012).
+    References:
+        Dere et al. (1997), A&AS 125, 149 (CHIANTI); Boerner et al. (2012).
     """
     import astropy.constants as const
     import astropy.units as u
@@ -204,22 +185,15 @@ def load_ssw_temperature_response(
     - response arrays of shape ``(n_lambda, n_T)`` under keys like
       ``response_v9_en`` / ``response_v10_en``.
 
-    Parameters
-    ----------
-    path : path-like
-        Path to the ``.npz`` archive.
-    log_temperatures : np.ndarray, optional
-        Target ``log10(T/K)`` grid (linear interp along T). If None, the
-        source grid is used.
-    wavelengths : list of int, optional
-        Channels to extract, in output order. If None, all channels in the
-        file (file order) are returned.
-    response_key : str
-        Which response variant to read.
+    Args:
+        path: Path to the ``.npz`` archive.
+        log_temperatures: Target ``log10(T/K)`` grid (linear interp along T). If None, the
+            source grid is used.
+        wavelengths: Channels to extract, in output order. If None, all channels in the
+            file (file order) are returned.
+        response_key: Which response variant to read.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         ``(n_temperatures, n_wavelengths)``. Units inherit from the file
         (typically DN cm^5 s^-1 pixel^-1).
     """
@@ -281,16 +255,11 @@ def compute_response_derivative(
 ) -> np.ndarray:
     """Temperature derivative dK/d(logT) of a response matrix.
 
-    Parameters
-    ----------
-    response : np.ndarray
-        Response matrix ``(n_temps, n_channels)``.
-    temperatures : np.ndarray
-        Temperatures in Kelvin.
+    Args:
+        response: Response matrix ``(n_temps, n_channels)``.
+        temperatures: Temperatures in Kelvin.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Same shape as ``response``.
     """
     logt = np.log10(temperatures)

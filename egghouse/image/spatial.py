@@ -22,31 +22,22 @@ def pad_image(
     For odd padding amounts, the extra pixel is added to the bottom/right by default
     when center=True.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Input image of shape (height, width) or (height, width, channels).
-    target_size : tuple of int
-        Target dimensions as (target_height, target_width).
-    pad_value : int or float, optional
-        Value to use for padding (default=0). For multi-channel images,
-        the same value is used for all channels.
-    center : bool, optional
-        If True, center the image in the padded canvas (default=True).
-        If False, align to top-left corner.
+    Args:
+        data: Input image of shape (height, width) or (height, width, channels).
+        target_size: Target dimensions as (target_height, target_width).
+        pad_value: Value to use for padding (default=0). For multi-channel
+            images, the same value is used for all channels.
+        center: If True, center the image in the padded canvas (default=True).
+            If False, align to top-left corner.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Padded image with shape matching target_size (plus channels if 3D).
 
-    Raises
-    ------
-    ValueError
-        If target size is smaller than input image size in any dimension.
+    Raises:
+        ValueError: If target size is smaller than input image size in any
+            dimension.
 
-    Examples
-    --------
+    Example:
     >>> # Pad 512x512 image to 1024x1024 for alignment
     >>> img = np.random.rand(512, 512)
     >>> padded = pad_image(img, target_size=(1024, 1024), pad_value=0)
@@ -122,25 +113,17 @@ def crop_or_pad(
     If the input is larger than target, crops from the center (or top-left).
     If the input is smaller, pads with the specified value.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Input image of shape (height, width) or (height, width, channels).
-    target_size : tuple of int
-        Target dimensions as (target_height, target_width).
-    pad_value : int or float, optional
-        Value to use for padding if needed (default=0).
-    center : bool, optional
-        If True, center-crop/center-pad (default=True).
-        If False, use top-left alignment.
+    Args:
+        data: Input image of shape (height, width) or (height, width, channels).
+        target_size: Target dimensions as (target_height, target_width).
+        pad_value: Value to use for padding if needed (default=0).
+        center: If True, center-crop/center-pad (default=True).
+            If False, use top-left alignment.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Image resized to target_size (plus channels if 3D).
 
-    Examples
-    --------
+    Example:
     >>> # Ensure consistent size for batching
     >>> img1 = np.random.rand(400, 600)
     >>> img2 = np.random.rand(800, 500)
@@ -202,22 +185,17 @@ def flip_image(
     """
     Flip an image vertically, horizontally, or both.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D or 3D).
-    axis : {'vertical', 'horizontal', 'both'}, optional
-        - 'vertical': Flip top to bottom (default)
-        - 'horizontal': Flip left to right
-        - 'both': Flip both axes (180 degree rotation)
+    Args:
+        image: Input image (2D or 3D).
+        axis: {'vertical', 'horizontal', 'both'}, optional
+            - 'vertical': Flip top to bottom (default)
+            - 'horizontal': Flip left to right
+            - 'both': Flip both axes (180 degree rotation)
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Flipped image with same shape and dtype.
 
-    Examples
-    --------
+    Example:
     >>> img = np.array([[1, 2], [3, 4]])
     >>> flip_image(img, 'vertical')
     array([[3, 4],
@@ -251,22 +229,15 @@ def roll_image(
     Pixels that roll beyond the edge reappear on the opposite side.
     Useful for aligning time-series images or periodic boundary conditions.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D or 3D).
-    shift_y : int
-        Shift amount in y-direction (positive = down).
-    shift_x : int
-        Shift amount in x-direction (positive = right).
+    Args:
+        image: Input image (2D or 3D).
+        shift_y: Shift amount in y-direction (positive = down).
+        shift_x: Shift amount in x-direction (positive = right).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Rolled image with same shape and dtype.
 
-    Examples
-    --------
+    Example:
     >>> img = np.array([[1, 2, 3],
     ...                 [4, 5, 6],
     ...                 [7, 8, 9]])
@@ -296,30 +267,22 @@ def bin_ndarray(
     reduces over the ``bi`` axes — equivalent to a block-wise sum or
     mean with no overlap.
 
-    Parameters
-    ----------
-    array : np.ndarray
-        Input n-dimensional array.
-    new_shape : tuple of int
-        Target shape. Must have the same number of dimensions as
-        ``array``, and each entry must divide ``array.shape[i]``.
-    operation : {"sum", "mean"}, default "sum"
-        Reduction applied within each block.
+    Args:
+        array: Input n-dimensional array.
+        new_shape: Target shape. Must have the same number of dimensions as
+            ``array``, and each entry must divide ``array.shape[i]``.
+        operation: {"sum", "mean"}, default "sum"
+            Reduction applied within each block.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Binned array with shape ``new_shape``.
 
-    Raises
-    ------
-    ValueError
-        If ``operation`` is unsupported, if the number of dimensions
-        does not match, or if any source dimension is not divisible by
-        the corresponding target dimension.
+    Raises:
+        ValueError: If ``operation`` is unsupported, if the number of dimensions
+            does not match, or if any source dimension is not divisible by
+            the corresponding target dimension.
 
-    Examples
-    --------
+    Example:
     >>> import numpy as np
     >>> m = np.arange(100).reshape((10, 10))
     >>> bin_ndarray(m, (5, 5), operation="sum").shape

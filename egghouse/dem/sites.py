@@ -31,72 +31,57 @@ def dem_sites(
     multi-wavelength observations to obtain the Differential Emission
     Measure as a function of temperature.
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel).
-        Shape: (n_channels,) for single pixel, or
-               (n_pixels, n_channels) for batch processing.
-    errors : np.ndarray
-        Intensity uncertainties, same shape as intensities.
-    response : np.ndarray
-        Temperature response matrix, shape (n_temps, n_channels).
-    temperatures : np.ndarray
-        Temperature array in Kelvin, shape (n_temps,).
-    max_iter : int, optional
-        Maximum number of iterations. Default: 100.
-    tol : float, optional
-        Convergence tolerance (relative change in chi-squared).
-        Default: 1e-3.
-    positivity : bool, optional
-        Enforce positivity constraint on DEM. Default: True.
-    regularization : float, optional
-        Regularization parameter (smoothness constraint). Default: 0.0.
+    Args:
+        intensities: Observed intensities (DN/s/pixel).
+            Shape: (n_channels,) for single pixel, or
+            (n_pixels, n_channels) for batch processing.
+        errors: Intensity uncertainties, same shape as intensities.
+        response: Temperature response matrix, shape (n_temps, n_channels).
+        temperatures: Temperature array in Kelvin, shape (n_temps,).
+        max_iter: Maximum number of iterations. Default: 100.
+        tol: Convergence tolerance (relative change in chi-squared).
+            Default: 1e-3.
+        positivity: Enforce positivity constraint on DEM. Default: True.
+        regularization: Regularization parameter (smoothness constraint). Default: 0.0.
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM solution, shape (n_temps,) or (n_pixels, n_temps).
-        Units: cm^-5 K^-1.
-    info : dict
-        Convergence information:
-        - "iterations": number of iterations performed
-        - "converged": whether convergence was achieved
-        - "chi2": final chi-squared value
-        - "chi2_history": chi-squared per iteration
-        - "residuals": final intensity residuals
+    Returns:
+        dem: DEM solution, shape (n_temps,) or (n_pixels, n_temps).
+            Units: cm^-5 K^-1.
+        info: Convergence information:
+            - "iterations": number of iterations performed
+            - "converged": whether convergence was achieved
+            - "chi2": final chi-squared value
+            - "chi2_history": chi-squared per iteration
+            - "residuals": final intensity residuals
 
-    Notes
-    -----
-    The solver uses a multiplicative (MART / EM-style) iteration, which
-    preserves positivity and self-scales the DEM magnitude:
+    Note:
+        The solver uses a multiplicative (MART / EM-style) iteration, which
+        preserves positivity and self-scales the DEM magnitude:
 
-    1. Initialize a strictly-positive flat DEM reproducing the total signal.
-    2. Compute synthetic intensities: I_syn = R @ DEM * dT.
-    3. Scale each temperature bin by the error-weighted, response-weighted
-       ratio of observed to synthetic intensity:
-       DEM(T) *= [sum_c w_c R_c(T) (I_obs/I_syn)_c] / [sum_c w_c R_c(T)].
-    4. Check chi-squared convergence.
+        1. Initialize a strictly-positive flat DEM reproducing the total signal.
+        2. Compute synthetic intensities: I_syn = R @ DEM * dT.
+        3. Scale each temperature bin by the error-weighted, response-weighted
+           ratio of observed to synthetic intensity:
+           DEM(T) *= [sum_c w_c R_c(T) (I_obs/I_syn)_c] / [sum_c w_c R_c(T)].
+        4. Check chi-squared convergence.
 
-    For an exact, deterministic alternative see ``dem_nnls``
-    (Tikhonov-regularized non-negative least squares).
+        For an exact, deterministic alternative see ``dem_nnls``
+        (Tikhonov-regularized non-negative least squares).
 
-    References
-    ----------
-    Morgan & Pickering (2019), Solar Physics 294, 135
-    DOI: 10.1007/s11207-019-1525-4
+    References:
+        Morgan & Pickering (2019), Solar Physics 294, 135
+        DOI: 10.1007/s11207-019-1525-4
 
-    Examples
-    --------
-    >>> import numpy as np
-    >>> from egghouse.dem import get_temperature_response, get_default_temperatures
-    >>> temps = get_default_temperatures(n_bins=50)
-    >>> response = get_temperature_response(temperatures=temps)
-    >>> intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
-    >>> errors = intensities * 0.1
-    >>> dem, info = dem_sites(intensities, errors, response, temps)
-    >>> dem.shape
-    (50,)
+    Example:
+        >>> import numpy as np
+        >>> from egghouse.dem import get_temperature_response, get_default_temperatures
+        >>> temps = get_default_temperatures(n_bins=50)
+        >>> response = get_temperature_response(temperatures=temps)
+        >>> intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
+        >>> errors = intensities * 0.1
+        >>> dem, info = dem_sites(intensities, errors, response, temps)
+        >>> dem.shape
+        (50,)
     """
     # Validate inputs - check original shape before converting to 2D
     squeeze_output = intensities.ndim == 1
@@ -190,38 +175,27 @@ def dem_sites_pixel(
 
     This is a simplified interface for single-pixel DEM inversion.
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape (n_channels,).
-    errors : np.ndarray
-        Intensity uncertainties, shape (n_channels,).
-    response : np.ndarray
-        Temperature response matrix, shape (n_temps, n_channels).
-    temperatures : np.ndarray
-        Temperature array in Kelvin, shape (n_temps,).
-    max_iter : int, optional
-        Maximum number of iterations. Default: 100.
-    tol : float, optional
-        Convergence tolerance. Default: 1e-3.
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape (n_channels,).
+        errors: Intensity uncertainties, shape (n_channels,).
+        response: Temperature response matrix, shape (n_temps, n_channels).
+        temperatures: Temperature array in Kelvin, shape (n_temps,).
+        max_iter: Maximum number of iterations. Default: 100.
+        tol: Convergence tolerance. Default: 1e-3.
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM solution, shape (n_temps,).
-    info : dict
-        Convergence information.
+    Returns:
+        dem: DEM solution, shape (n_temps,).
+        info: Convergence information.
 
-    Examples
-    --------
-    >>> import numpy as np
-    >>> temps = np.logspace(5.5, 7.5, 50)
-    >>> response = np.random.rand(50, 6) * 1e-26
-    >>> intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
-    >>> errors = intensities * 0.1
-    >>> dem, info = dem_sites_pixel(intensities, errors, response, temps)
-    >>> dem.shape
-    (50,)
+    Example:
+        >>> import numpy as np
+        >>> temps = np.logspace(5.5, 7.5, 50)
+        >>> response = np.random.rand(50, 6) * 1e-26
+        >>> intensities = np.array([10.0, 50.0, 200.0, 150.0, 80.0, 20.0])
+        >>> errors = intensities * 0.1
+        >>> dem, info = dem_sites_pixel(intensities, errors, response, temps)
+        >>> dem.shape
+        (50,)
     """
     return dem_sites(
         intensities,
@@ -240,16 +214,11 @@ def _apply_smoothing(
     """
     Apply smoothing regularization to DEM.
 
-    Parameters
-    ----------
-    dem : np.ndarray
-        DEM array, shape (n_pixels, n_temps).
-    strength : float
-        Smoothing strength (0-1).
+    Args:
+        dem: DEM array, shape (n_pixels, n_temps).
+        strength: Smoothing strength (0-1).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Smoothed DEM.
     """
     from scipy.ndimage import gaussian_filter1d
@@ -268,18 +237,12 @@ def compute_synthetic_intensities(
 
     I = integral(K(T) * DEM(T) * dT)
 
-    Parameters
-    ----------
-    dem : np.ndarray
-        DEM solution, shape (n_temps,) or (n_pixels, n_temps).
-    response : np.ndarray
-        Temperature response, shape (n_temps, n_channels).
-    temperatures : np.ndarray
-        Temperature array.
+    Args:
+        dem: DEM solution, shape (n_temps,) or (n_pixels, n_temps).
+        response: Temperature response, shape (n_temps, n_channels).
+        temperatures: Temperature array.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Synthetic intensities, shape (n_channels,) or (n_pixels, n_channels).
     """
     dem = np.atleast_2d(dem)

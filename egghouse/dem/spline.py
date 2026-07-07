@@ -18,8 +18,7 @@ low-parameter DEM forward-folded through the temperature response and fit to
 the band intensities, with the spline guaranteeing a smooth, strictly
 positive solution.
 
-References
-----------
+References:
 - Weber, M. A., DeLuca, E. E., Golub, L. & Sette, A. L. 2004, in IAU Symp.
   223, Multi-Wavelength Investigations of Solar Activity, ed. A. V.
   Stepanov, E. E. Benevolenskaya & A. G. Kosovichev (Cambridge: Cambridge
@@ -122,38 +121,26 @@ def dem_spline(
     pixel with :func:`scipy.optimize.least_squares` minimizing the
     error-weighted intensity residuals ``(A @ DEM - I) / sigma``.
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
-        ``(n_pixels, n_channels)``.
-    errors : np.ndarray
-        1-sigma uncertainties, same shape as ``intensities``.
-    response : np.ndarray
-        Temperature response, shape ``(n_temps, n_channels)`` (same
-        convention as :func:`egghouse.dem.dem_nnls`).
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_temps,)``.
-    n_knots : int
-        Number of spline knots across the ``log10(T)`` range (default 5).
-        Must be >= 2; >= 4 recommended for a cubic spline.
-    floor_logdem : float
-        Fallback ``log10(DEM)`` for the initial guess when the flat-DEM
-        projection is non-positive (default 15.0).
-    max_nfev : int
-        Maximum residual evaluations per pixel for ``least_squares``.
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
+            ``(n_pixels, n_channels)``.
+        errors: 1-sigma uncertainties, same shape as ``intensities``.
+        response: Temperature response, shape ``(n_temps, n_channels)`` (same
+            convention as :func:`egghouse.dem.dem_nnls`).
+        temperatures: Temperatures in Kelvin, shape ``(n_temps,)``.
+        n_knots: Number of spline knots across the ``log10(T)`` range (default 5).
+            Must be >= 2; >= 4 recommended for a cubic spline.
+        floor_logdem: Fallback ``log10(DEM)`` for the initial guess when the flat-DEM
+            projection is non-positive (default 15.0).
+        max_nfev: Maximum residual evaluations per pixel for ``least_squares``.
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
-    info : dict
-        ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), ``n_knots``,
-        ``knot_logt`` (knot positions in log10 T).
+    Returns:
+        dem: DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
+        info: ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), ``n_knots``,
+            ``knot_logt`` (knot positions in log10 T).
 
-    References
-    ----------
-    Weber et al. (2004, IAU Symp. 223, 321) — ``xrt_dem_iterative2``.
+    References:
+        Weber et al. (2004, IAU Symp. 223, 321) — ``xrt_dem_iterative2``.
     """
     squeeze = intensities.ndim == 1
     intensities = np.atleast_2d(intensities).astype(np.float64)

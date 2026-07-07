@@ -51,31 +51,21 @@ def jsoc_export(
 ) -> list[str]:
     """Submit a JSOC export request and return the resulting URL list.
 
-    Parameters
-    ----------
-    query : str
-        DRMS record-set string, e.g. produced by :func:`aia_euv_query`.
-    email : str
-        JSOC export email (must be registered at jsoc.stanford.edu).
-    method : str, default ``"url"``
-        Export method; ``"url"`` blocks server-side until the dataset is
-        staged and returns concrete URLs.
-    protocol : str, default ``"fits"``
-        File protocol for staged files.
-    client : drms.Client, optional
-        Reusable client. When ``None`` a fresh one is constructed from
-        ``email``.
+    Args:
+        query: DRMS record-set string, e.g. produced by :func:`aia_euv_query`.
+        email: JSOC export email (must be registered at jsoc.stanford.edu).
+        method: Export method; ``"url"`` blocks server-side until the dataset is
+            staged and returns concrete URLs. (default ``"url"``)
+        protocol: File protocol for staged files. (default ``"fits"``)
+        client: Reusable client. When ``None`` a fresh one is constructed from
+            ``email``. (optional)
 
-    Returns
-    -------
-    list[str]
+    Returns:
         URLs of staged files, in the order JSOC returned them. May be
         empty when no records match the query.
 
-    Raises
-    ------
-    RuntimeError
-        If the export request did not finish successfully.
+    Raises:
+        RuntimeError: If the export request did not finish successfully.
     """
     import drms
 
@@ -106,28 +96,22 @@ def aia_euv_query(
     predicate. Multiple timestamps are concatenated into a single export
     request.
 
-    Example
-    -------
+    Example:
     >>> from datetime import datetime, timedelta
     >>> q = aia_euv_query([datetime(2014, 1, 1, 12, 0, 0)])
     >>> q.startswith("aia.lev1_euv_12s[2014.01.01_12:00:00_TAI/")
     True
 
-    Parameters
-    ----------
-    times : sequence of datetime
-        Timestamps to select. Must be non-empty. Naive datetimes are
-        interpreted as TAI (which is what JSOC expects).
-    wavelengths : sequence of int, default the six DEM channels
-        AIA EUV passbands in Angstroms to retain.
-    series : str, default ``aia.lev1_euv_12s``
-        DRMS series name.
-    tolerance : timedelta, default 12 s
-        How far past each timestamp to scan for a matching record.
+    Args:
+        times: Timestamps to select. Must be non-empty. Naive datetimes are
+            interpreted as TAI (which is what JSOC expects).
+        wavelengths: AIA EUV passbands in Angstroms to retain. (default the six
+            DEM channels)
+        series: DRMS series name. (default ``aia.lev1_euv_12s``)
+        tolerance: How far past each timestamp to scan for a matching record.
+            (default 12 s)
 
-    Returns
-    -------
-    str
+    Returns:
         DRMS record-set string ready for :func:`jsoc_export`.
     """
     if not times:
@@ -153,14 +137,10 @@ def cached_correction_table(path: Union[str, os.PathLike]) -> "Table":
     ``path``. Subsequent calls deserialize from disk and skip the
     network round-trip.
 
-    Parameters
-    ----------
-    path : path-like
-        Pickle cache location. Parent directories are created on demand.
+    Args:
+        path: Pickle cache location. Parent directories are created on demand.
 
-    Returns
-    -------
-    astropy.table.Table
+    Returns:
         The correction table.
     """
     path = Path(path)
@@ -190,17 +170,12 @@ def cached_pointing_table(
     populated; a stale cache file is reused as-is. Callers needing a
     fresh window should delete the file first.
 
-    Parameters
-    ----------
-    path : path-like
-        Pickle cache location.
-    start, end : datetime
-        Time range to request from aiapy. ``end`` is exclusive in the
-        usual aiapy convention.
+    Args:
+        path: Pickle cache location.
+        start, end: Time range to request from aiapy. ``end`` is exclusive in the
+            usual aiapy convention.
 
-    Returns
-    -------
-    astropy.table.Table
+    Returns:
         The pointing table.
     """
     path = Path(path)

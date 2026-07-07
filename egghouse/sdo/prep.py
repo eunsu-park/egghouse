@@ -153,16 +153,12 @@ def cached_aia_psfs(
     `wavelengths`; if the file is missing or does not cover *all* of the
     requested wavelengths, it is rebuilt for the full set.
 
-    Parameters
-    ----------
-    path : path-like
-        Pickle cache location.
-    wavelengths : iterable of int, default the seven calibrated AIA channels
-        Wavelengths in Angstroms to include in the cache.
+    Args:
+        path: Pickle cache location.
+        wavelengths: Wavelengths in Angstroms to include in the cache. (default
+            the seven calibrated AIA channels)
 
-    Returns
-    -------
-    dict[int, np.ndarray]
+    Returns:
         Mapping wavelength (Å, int) -> PSF array.
     """
     path = Path(path)
@@ -204,17 +200,12 @@ def mask_out_of_disk(
     `(CRPIX1, CRPIX2)`. Useful for marking pixels that should be ignored
     by downstream pipelines (e.g. the DEM model's training loop).
 
-    Parameters
-    ----------
-    sdo_map : sunpy.map.Map
-        Input map. Not mutated.
-    fill_value : float, default -5000.0
-        Sentinel written into off-disk pixels. The snsw default matches
-        what undine's pre-research used.
+    Args:
+        sdo_map: Input map. Not mutated.
+        fill_value: Sentinel written into off-disk pixels. The snsw default
+            matches what undine's pre-research used. (default -5000.0)
 
-    Returns
-    -------
-    sunpy.map.Map
+    Returns:
         New Map with the masked data array and the original metadata.
     """
     from sunpy.map import Map

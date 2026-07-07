@@ -20,29 +20,21 @@ def resize_image(
     """
     Resize an image to the specified size.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image. Can be 2D (grayscale) or 3D (color, channel last).
-        Supports any numpy dtype (uint8, uint16, float32, float64, etc.)
-    size : Tuple[int, int]
-        Target size as (height, width).
-    order : int, optional
-        Interpolation order (default=1):
-        - 0: nearest-neighbor
-        - 1: bilinear
-        - 2: bi-quadratic
-        - 3: bi-cubic
-    preserve_range : bool, optional
-        If True, preserve the original data range and dtype (default=True).
+    Args:
+        image: Input image. Can be 2D (grayscale) or 3D (color, channel last).
+            Supports any numpy dtype (uint8, uint16, float32, float64, etc.)
+        size: Target size as (height, width).
+        order: Interpolation order (default=1):
+            - 0: nearest-neighbor
+            - 1: bilinear
+            - 2: bi-quadratic
+            - 3: bi-cubic
+        preserve_range: If True, preserve the original data range and dtype (default=True).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Resized image with the same dtype as input.
 
-    Examples
-    --------
+    Example:
     >>> img = np.random.rand(100, 100).astype(np.float32)
     >>> resized = resize_image(img, (50, 50))
     >>> resized.shape
@@ -91,34 +83,24 @@ def rotate_image(
     """
     Rotate an image by the specified angle (in degrees).
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image. Can be 2D (grayscale) or 3D (color, channel last).
-        Supports any numpy dtype (uint8, uint16, float32, float64, etc.)
-    angle : float
-        Rotation angle in degrees. Positive values rotate counter-clockwise.
-    order : int, optional
-        Interpolation order (default=1):
-        - 0: nearest-neighbor
-        - 1: bilinear
-        - 2: bi-quadratic
-        - 3: bi-cubic
-    reshape : bool, optional
-        If True, output shape is adapted to contain the entire rotated image.
-        If False, output shape is the same as input (default=False).
-    cval : float or int, optional
-        Value used for points outside the boundaries (default=0).
-    preserve_range : bool, optional
-        If True, preserve the original data range and dtype (default=True).
+    Args:
+        image: Input image. Can be 2D (grayscale) or 3D (color, channel last).
+            Supports any numpy dtype (uint8, uint16, float32, float64, etc.)
+        angle: Rotation angle in degrees. Positive values rotate counter-clockwise.
+        order: Interpolation order (default=1):
+            - 0: nearest-neighbor
+            - 1: bilinear
+            - 2: bi-quadratic
+            - 3: bi-cubic
+        reshape: If True, output shape is adapted to contain the entire rotated image.
+            If False, output shape is the same as input (default=False).
+        cval: Value used for points outside the boundaries (default=0).
+        preserve_range: If True, preserve the original data range and dtype (default=True).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Rotated image with the same dtype as input.
 
-    Examples
-    --------
+    Example:
     >>> img = np.random.rand(100, 100).astype(np.float32)
     >>> rotated = rotate_image(img, 45)
     >>> rotated.shape
@@ -178,31 +160,20 @@ def bytescale_image(
     then converts to uint8. Useful for visualizing scientific data (e.g., FITS images)
     or preparing data for display/saving.
 
-    Parameters
-    ----------
-    data : np.ndarray
-        Input array of any numeric dtype.
-    imin : float or int, optional
-        Input minimum value for scaling. If None, uses data.min().
-    imax : float or int, optional
-        Input maximum value for scaling. If None, uses data.max().
-    omin : int, optional
-        Output minimum value (default=0).
-    omax : int, optional
-        Output maximum value (default=255).
+    Args:
+        data: Input array of any numeric dtype.
+        imin: Input minimum value for scaling. If None, uses data.min().
+        imax: Input maximum value for scaling. If None, uses data.max().
+        omin: Output minimum value (default=0).
+        omax: Output maximum value (default=255).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Scaled array with dtype=uint8.
 
-    Raises
-    ------
-    ValueError
-        If imin >= imax (invalid input range).
+    Raises:
+        ValueError: If imin >= imax (invalid input range).
 
-    Examples
-    --------
+    Example:
     >>> # Scale 16-bit solar image to 8-bit for display
     >>> img_16bit = np.random.randint(0, 65535, (512, 512), dtype=np.uint16)
     >>> img_8bit = bytescale_image(img_16bit, imin=0, imax=65535)

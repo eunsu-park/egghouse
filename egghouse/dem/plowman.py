@@ -14,8 +14,7 @@ operator, and ``lambda`` a single global regularization weight picked
 (discrepancy principle) so the typical data chi^2 is near the number of
 channels. Positivity (DEM >= 0) is enforced by clipping negative bins.
 
-Relation to Plowman, Kankelborg & Martens (2013)
--------------------------------------------------
+Relation to Plowman, Kankelborg & Martens (2013):
 That paper's headline result is a fast, non-iterative pixel-by-pixel linear
 solve that is orders of magnitude faster than iterative DEM codes. This module
 keeps that core idea -- precompute one linear inverse operator and apply it to
@@ -30,8 +29,7 @@ photon-noise regime to first order) get an exact per-pixel solve; otherwise the
 weighting is the batch-median relative error and per-pixel chi^2 is reported so
 deviations are visible.
 
-References
-----------
+References:
 - Plowman, J., Kankelborg, C. & Martens, P. 2013, ApJ 771, 2.
   DOI 10.1088/0004-637X/771/1/2.
 - Hannah, I. G. & Kontar, E. P. 2012, A&A 539, A146 -- chi^2-based
@@ -165,37 +163,25 @@ def dem_plowman(
     optimality of NNLS for a large speedup (the selling point of the linear
     method); see the module docstring for the relation to Plowman et al. 2013.
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
-        ``(n_pixels, n_channels)``.
-    errors : np.ndarray
-        1-sigma uncertainties, same shape as ``intensities``.
-    response : np.ndarray
-        Temperature response, shape ``(n_temps, n_channels)`` (same convention
-        as :func:`egghouse.dem.dem_sites`).
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_temps,)``.
-    reg_order : {0, 2}
-        Tikhonov order: 0 = magnitude, 2 = second-difference smoothness.
-    reg_lambda : float, optional
-        Global regularization weight. If ``None`` it is calibrated once via
-        :func:`calibrate_lambda` so the median chi^2 ~ ``target_chi2``.
-    target_chi2 : float, optional
-        Target chi^2 for auto-calibration. Defaults to the number of channels.
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
+            ``(n_pixels, n_channels)``.
+        errors: 1-sigma uncertainties, same shape as ``intensities``.
+        response: Temperature response, shape ``(n_temps, n_channels)`` (same convention
+            as :func:`egghouse.dem.dem_sites`).
+        temperatures: Temperatures in Kelvin, shape ``(n_temps,)``.
+        reg_order: Tikhonov order: 0 = magnitude, 2 = second-difference smoothness.
+        reg_lambda: Global regularization weight. If ``None`` it is calibrated once via
+            :func:`calibrate_lambda` so the median chi^2 ~ ``target_chi2``.
+        target_chi2: Target chi^2 for auto-calibration. Defaults to the number of channels.
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
-        Non-negative.
-    info : dict
-        ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), ``reg_lambda``.
+    Returns:
+        dem: DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
+            Non-negative.
+        info: ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), ``reg_lambda``.
 
-    References
-    ----------
-    Plowman, Kankelborg & Martens (2013, ApJ 771, 2); Hannah & Kontar (2012).
+    References:
+        Plowman, Kankelborg & Martens (2013, ApJ 771, 2); Hannah & Kontar (2012).
     """
     squeeze = intensities.ndim == 1
     intensities = np.atleast_2d(intensities).astype(np.float64)

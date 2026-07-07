@@ -18,24 +18,17 @@ def gaussian_smooth(
     """
     Apply Gaussian smoothing filter for noise reduction.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D or 3D). For 3D images, filter is applied to
-        spatial dimensions only.
-    sigma : float or tuple of float, optional
-        Standard deviation for Gaussian kernel. If float, same sigma
-        is used for all spatial dimensions. Default is 1.0.
-    preserve_range : bool, optional
-        If True, preserve original dtype (default=True).
+    Args:
+        image: Input image (2D or 3D). For 3D images, filter is applied to
+            spatial dimensions only.
+        sigma: Standard deviation for Gaussian kernel. If float, same sigma
+            is used for all spatial dimensions. Default is 1.0.
+        preserve_range: If True, preserve original dtype (default=True).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Smoothed image.
 
-    Examples
-    --------
+    Example:
     >>> # Basic smoothing
     >>> smoothed = gaussian_smooth(image, sigma=1.5)
 
@@ -76,23 +69,16 @@ def median_denoise(
     Effective for removing salt-and-pepper noise and cosmic rays
     while preserving edges better than Gaussian smoothing.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D or 3D).
-    size : int or tuple of int, optional
-        Size of the median filter window. If int, same size is used
-        for all spatial dimensions. Default is 3.
-    preserve_range : bool, optional
-        If True, preserve original dtype (default=True).
+    Args:
+        image: Input image (2D or 3D).
+        size: Size of the median filter window. If int, same size is used
+            for all spatial dimensions. Default is 3.
+        preserve_range: If True, preserve original dtype (default=True).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Denoised image.
 
-    Examples
-    --------
+    Example:
     >>> # Remove cosmic rays from CCD image
     >>> clean = median_denoise(raw_image, size=3)
 
@@ -132,21 +118,15 @@ def laplacian_edge(
     Computes the Laplacian (second derivative) of the image,
     highlighting regions of rapid intensity change.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D).
-    mode : str, optional
-        How to handle boundaries. Options: 'reflect', 'constant',
-        'nearest', 'mirror', 'wrap'. Default is 'reflect'.
+    Args:
+        image: Input image (2D).
+        mode: How to handle boundaries. Options: 'reflect', 'constant',
+            'nearest', 'mirror', 'wrap'. Default is 'reflect'.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Edge-detected image (float64).
 
-    Examples
-    --------
+    Example:
     >>> # Basic edge detection
     >>> edges = laplacian_edge(image)
 
@@ -169,25 +149,18 @@ def sobel_edge(
 
     Computes the gradient magnitude or directional gradient of the image.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D).
-    axis : int, optional
-        Axis along which to compute gradient.
-        - None: Compute gradient magnitude (default)
-        - 0: Gradient in y-direction (vertical edges)
-        - 1: Gradient in x-direction (horizontal edges)
-    mode : str, optional
-        How to handle boundaries. Default is 'reflect'.
+    Args:
+        image: Input image (2D).
+        axis: Axis along which to compute gradient.
+            - None: Compute gradient magnitude (default)
+            - 0: Gradient in y-direction (vertical edges)
+            - 1: Gradient in x-direction (horizontal edges)
+        mode: How to handle boundaries. Default is 'reflect'.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Edge-detected image (float64).
 
-    Examples
-    --------
+    Example:
     >>> # Gradient magnitude (all edges)
     >>> edges = sobel_edge(image)
 
@@ -222,25 +195,17 @@ def unsharp_mask(
 
     Enhances edges by subtracting a blurred version of the image.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D or 3D).
-    sigma : float, optional
-        Gaussian blur sigma. Default is 1.0.
-    amount : float, optional
-        Sharpening strength. Values > 1.0 increase sharpening.
-        Default is 1.0.
-    preserve_range : bool, optional
-        If True, preserve original dtype (default=True).
+    Args:
+        image: Input image (2D or 3D).
+        sigma: Gaussian blur sigma. Default is 1.0.
+        amount: Sharpening strength. Values > 1.0 increase sharpening.
+            Default is 1.0.
+        preserve_range: If True, preserve original dtype (default=True).
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Sharpened image.
 
-    Examples
-    --------
+    Example:
     >>> # Basic sharpening
     >>> sharp = unsharp_mask(image, sigma=1.0, amount=1.5)
 

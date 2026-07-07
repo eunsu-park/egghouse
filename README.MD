@@ -2,15 +2,11 @@
 
 A personal arsenal of reusable code for solar physics research.
 
-이 레포지터리는 개인 프로젝트들에서 공통으로 사용하는 유틸리티를 모아둔 라이브러리입니다.
-
-> **Shared common layer.** `egghouse` is the place where functionality common
-> to the sibling projects — the **SOLARIS** program (`solaris-data` acquisition + DB,
-> `solaris-denoise` noise-removal models), **`lolipop`** (low-light denoising research),
-> and **`undine`** (DEM) — is implemented once and consumed via `import`. New generic primitives (image metrics, denoisers, transforms,
-> noise-scale estimation, config, DB/transfer helpers) belong here, not
-> duplicated in the consumers. `egghouse.config.BaseConfig` is the standard
-> mechanism those projects use to read paths/params from env/YAML/CLI.
+> **Shared common layer.** `egghouse` implements generic primitives once —
+> image metrics, denoisers, transforms, noise-scale estimation, config, and
+> DB/transfer helpers — so they can be consumed via `import` rather than
+> duplicated. `egghouse.config.BaseConfig` is the standard mechanism for
+> reading paths/params from env/YAML/CLI.
 
 ---
 
@@ -48,13 +44,13 @@ pip install -e .
 ## Quick Start
 
 ```python
-# 1. 이미지 전처리 (resize, mask, scaling)
+# 1. Image preprocessing (resize, mask, scaling)
 from egghouse.image import resize_image, circle_mask, bytescale_image
 resized = resize_image(data, (1024, 1024))
 mask = circle_mask(4096, radius=1600)
 display = bytescale_image(data, imin=0, imax=5000)
 
-# 2. SDO Level 1.5 변환
+# 2. SDO Level 1.5 conversion
 from egghouse.sdo import to_level15
 level15_map = to_level15('aia_lev1.fits')  # auto-detect AIA/HMI
 
@@ -72,7 +68,7 @@ from egghouse.sdo import (
 )
 # Compose at the call site; pass cached tables/PSFs for batch jobs.
 
-# 3. DEM (Differential Emission Measure) 분석
+# 3. DEM (Differential Emission Measure) analysis
 # DEM solvers are instrument-agnostic and live in `egghouse.dem`; the AIA
 # temperature response (instrument-specific) is in `egghouse.sdo`.
 from egghouse.dem import dem_sites, get_default_temperatures

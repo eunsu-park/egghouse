@@ -13,8 +13,7 @@ basis-pursuit solution that explains the n_channels intensities with as few
 populated temperature bins as possible. The temperature bins are used directly
 as the basis.
 
-References
-----------
+References:
 - Cheung, M. C. M., Boerner, P., Schrijver, C. J., et al. 2015, ApJ 807, 143.
   DOI 10.1088/0004-637X/807/2/143 — Basis-pursuit / sparse DEM inversion for
   SDO/AIA.
@@ -123,40 +122,28 @@ def dem_sparse(
     within ``n_sigma`` standard deviations. The positivity + L1 objective
     yields a sparse DEM (Cheung et al. 2015).
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
-        ``(n_pixels, n_channels)``.
-    errors : np.ndarray
-        1-sigma uncertainties, same shape as ``intensities``.
-    response : np.ndarray
-        Temperature response, shape ``(n_temps, n_channels)`` (same convention
-        as :func:`egghouse.dem.dem_sites` / :func:`dem_nnls`).
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_temps,)``.
-    n_sigma : float
-        Data-fit tolerance: the fit must satisfy ``|A@DEM - I| <= n_sigma*sigma``
-        for every channel. Larger values give sparser, looser fits.
-    relax_factor : float
-        Multiplicative factor by which ``n_sigma`` is enlarged when a pixel's
-        LP is infeasible (must be > 1).
-    max_relax : int
-        Maximum number of relaxation steps before giving up on a pixel (then
-        returns zeros for that pixel and flags it infeasible).
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
+            ``(n_pixels, n_channels)``.
+        errors: 1-sigma uncertainties, same shape as ``intensities``.
+        response: Temperature response, shape ``(n_temps, n_channels)`` (same convention
+            as :func:`egghouse.dem.dem_sites` / :func:`dem_nnls`).
+        temperatures: Temperatures in Kelvin, shape ``(n_temps,)``.
+        n_sigma: Data-fit tolerance: the fit must satisfy ``|A@DEM - I| <= n_sigma*sigma``
+            for every channel. Larger values give sparser, looser fits.
+        relax_factor: Multiplicative factor by which ``n_sigma`` is enlarged when a pixel's
+            LP is infeasible (must be > 1).
+        max_relax: Maximum number of relaxation steps before giving up on a pixel (then
+            returns zeros for that pixel and flags it infeasible).
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
-    info : dict
-        ``chi2`` (mean data chi^2 over feasible pixels), ``chi2_map``
-        (per-pixel data chi^2), ``n_sigma``, ``feasible_map`` (bool per pixel),
-        ``n_infeasible`` (count of pixels needing relaxation or returning zeros).
+    Returns:
+        dem: DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
+        info: ``chi2`` (mean data chi^2 over feasible pixels), ``chi2_map``
+            (per-pixel data chi^2), ``n_sigma``, ``feasible_map`` (bool per pixel),
+            ``n_infeasible`` (count of pixels needing relaxation or returning zeros).
 
-    References
-    ----------
-    Cheung, M. C. M., et al. 2015, ApJ 807, 143.
+    References:
+        Cheung, M. C. M., et al. 2015, ApJ 807, 143.
     """
     if relax_factor <= 1.0:
         raise ValueError(f"relax_factor must be > 1; got {relax_factor}")

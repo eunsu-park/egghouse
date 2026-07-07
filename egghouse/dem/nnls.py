@@ -13,8 +13,7 @@ chi-squared is near the number of channels.
 The non-negativity is both physical (DEM >= 0) and a stabiliser for this
 ill-posed 6-channel -> many-temperature inversion.
 
-References
-----------
+References:
 - Lawson, C. L. & Hanson, R. J. 1995, *Solving Least Squares Problems*,
   SIAM Classics in Applied Mathematics 15 (orig. 1974) — NNLS active-set.
 - Hannah, I. G. & Kontar, E. P. 2012, A&A 539, A146 — regularized DEM
@@ -166,40 +165,28 @@ def dem_nnls(
 ) -> Tuple[np.ndarray, Dict]:
     """Tikhonov-regularized NNLS DEM inversion (single pixel or batch).
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
-        ``(n_pixels, n_channels)``.
-    errors : np.ndarray
-        1-sigma uncertainties, same shape as ``intensities``.
-    response : np.ndarray
-        Temperature response, shape ``(n_temps, n_channels)`` (same
-        convention as :func:`egghouse.dem.dem_sites`).
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_temps,)``.
-    reg_order : {0, 2}
-        Tikhonov order: 0 = magnitude, 2 = second-difference smoothness.
-    reg_scale : float
-        Fixed dimensionless regularization knob (used when ``target_chi2``
-        is None; see :func:`calibrate_reg_scale` to pick a global value).
-    target_chi2 : float, optional
-        If given, each pixel's ``reg_scale`` is found by a per-pixel
-        discrepancy-principle bisection so its data chi^2 approaches this
-        value (typically n_channels). Slower but avoids a global reg_scale
-        over-fitting bright pixels / under-fitting faint ones. Overrides
-        ``reg_scale``.
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
+            ``(n_pixels, n_channels)``.
+        errors: 1-sigma uncertainties, same shape as ``intensities``.
+        response: Temperature response, shape ``(n_temps, n_channels)`` (same
+            convention as :func:`egghouse.dem.dem_sites`).
+        temperatures: Temperatures in Kelvin, shape ``(n_temps,)``.
+        reg_order: Tikhonov order: 0 = magnitude, 2 = second-difference smoothness.
+        reg_scale: Fixed dimensionless regularization knob (used when ``target_chi2``
+            is None; see :func:`calibrate_reg_scale` to pick a global value).
+        target_chi2: If given, each pixel's ``reg_scale`` is found by a per-pixel
+            discrepancy-principle bisection so its data chi^2 approaches this
+            value (typically n_channels). Slower but avoids a global reg_scale
+            over-fitting bright pixels / under-fitting faint ones. Overrides
+            ``reg_scale``.
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
-    info : dict
-        ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), ``reg_scale``.
+    Returns:
+        dem: DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
+        info: ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), ``reg_scale``.
 
-    References
-    ----------
-    Lawson & Hanson (1995); Hannah & Kontar (2012, A&A 539, A146).
+    References:
+        Lawson & Hanson (1995); Hannah & Kontar (2012, A&A 539, A146).
     """
     squeeze = intensities.ndim == 1
     intensities = np.atleast_2d(intensities).astype(np.float64)

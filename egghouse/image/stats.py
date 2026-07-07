@@ -21,22 +21,15 @@ def normalize_image(
     Performs z-score normalization: (image - mean) / std.
     Commonly used as preprocessing for neural networks.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image of any shape.
-    mean : float, optional
-        Mean value for normalization. If None, computed from image.
-    std : float, optional
-        Standard deviation for normalization. If None, computed from image.
+    Args:
+        image: Input image of any shape.
+        mean: Mean value for normalization. If None, computed from image.
+        std: Standard deviation for normalization. If None, computed from image.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Normalized image (float64).
 
-    Examples
-    --------
+    Example:
     >>> # Auto-compute mean and std
     >>> normalized = normalize_image(image)
 
@@ -69,26 +62,19 @@ def get_image_stats(
     """
     Compute comprehensive statistics for an image.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image.
-    mask : np.ndarray, optional
-        Boolean mask. If provided, statistics are computed only
-        for pixels where mask is True.
-    percentiles : tuple of float, optional
-        Percentiles to compute. Default is (1, 5, 25, 50, 75, 95, 99).
+    Args:
+        image: Input image.
+        mask: Boolean mask. If provided, statistics are computed only
+            for pixels where mask is True.
+        percentiles: Percentiles to compute. Default is (1, 5, 25, 50, 75, 95, 99).
 
-    Returns
-    -------
-    dict
+    Returns:
         Dictionary containing:
         - mean, std, min, max, median
         - p1, p5, p25, p50, p75, p95, p99 (or custom percentiles)
         - count: number of pixels used
 
-    Examples
-    --------
+    Example:
     >>> stats = get_image_stats(image)
     >>> print(f"Mean: {stats['mean']:.2f}, Std: {stats['std']:.2f}")
 
@@ -135,20 +121,14 @@ def histogram_equalization(
     Redistributes pixel intensities to achieve a more uniform histogram,
     improving contrast in images with narrow intensity distributions.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D). Should be integer type or will be converted.
-    nbins : int, optional
-        Number of histogram bins. Default is 256.
+    Args:
+        image: Input image (2D). Should be integer type or will be converted.
+        nbins: Number of histogram bins. Default is 256.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Contrast-enhanced image (uint8).
 
-    Examples
-    --------
+    Example:
     >>> # Enhance low-contrast image
     >>> enhanced = histogram_equalization(image)
 
@@ -192,26 +172,17 @@ def percentile_scale(
     Clips values at specified percentiles before scaling, which is
     more robust to outliers than min/max scaling.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image.
-    low_percentile : float, optional
-        Lower percentile for clipping. Default is 1.0.
-    high_percentile : float, optional
-        Upper percentile for clipping. Default is 99.0.
-    omin : int, optional
-        Output minimum value. Default is 0.
-    omax : int, optional
-        Output maximum value. Default is 255.
+    Args:
+        image: Input image.
+        low_percentile: Lower percentile for clipping. Default is 1.0.
+        high_percentile: Upper percentile for clipping. Default is 99.0.
+        omin: Output minimum value. Default is 0.
+        omax: Output maximum value. Default is 255.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Scaled image (uint8).
 
-    Examples
-    --------
+    Example:
     >>> # Standard percentile scaling
     >>> scaled = percentile_scale(image)
 
@@ -246,25 +217,18 @@ def find_disk_center(
     """
     Find the center of a bright disk (e.g., solar disk) in an image.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D) with a bright disk.
-    threshold : float, optional
-        Intensity threshold for disk detection. Pixels below this
-        value are ignored. If None, uses mean intensity.
-    method : str, optional
-        Method for center detection:
-        - 'centroid': Center of mass of thresholded image (default)
-        - 'geometric': Geometric center of thresholded region
+    Args:
+        image: Input image (2D) with a bright disk.
+        threshold: Intensity threshold for disk detection. Pixels below this
+            value are ignored. If None, uses mean intensity.
+        method: Method for center detection:
+            - 'centroid': Center of mass of thresholded image (default)
+            - 'geometric': Geometric center of thresholded region
 
-    Returns
-    -------
-    tuple of float
+    Returns:
         Center coordinates as (cy, cx).
 
-    Examples
-    --------
+    Example:
     >>> # Find solar disk center
     >>> cy, cx = find_disk_center(aia_image)
     >>> print(f"Disk center: ({cy:.1f}, {cx:.1f})")
@@ -310,24 +274,17 @@ def adaptive_threshold(
     Uses local mean intensity to determine threshold, handling
     images with varying illumination.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        Input image (2D).
-    block_size : int, optional
-        Size of local neighborhood for threshold computation.
-        Must be odd. Default is 35.
-    offset : float, optional
-        Constant subtracted from local mean. Positive values
-        result in more foreground. Default is 0.
+    Args:
+        image: Input image (2D).
+        block_size: Size of local neighborhood for threshold computation.
+            Must be odd. Default is 35.
+        offset: Constant subtracted from local mean. Positive values
+            result in more foreground. Default is 0.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Binary image (bool).
 
-    Examples
-    --------
+    Example:
     >>> # Basic adaptive threshold
     >>> binary = adaptive_threshold(image)
 

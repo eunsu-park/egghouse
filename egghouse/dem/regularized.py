@@ -34,7 +34,6 @@ the unclipped linear solution (the quantity the discrepancy principle targets;
 clipping would otherwise inflate it above target).
 
 What is implemented vs. the full Hannah & Kontar (2012) method
---------------------------------------------------------------
 Implemented: the error-weighted Tikhonov inversion via the GSVD of the scaled
 pair (B, L diag(d)) for reg_order 0 and 2; column preconditioning for the
 40-decade scale gap; per-pixel selection of lambda by the discrepancy principle
@@ -50,8 +49,7 @@ inversion with clipping, not the iterative reweighted scheme. Reconstructed
 intensities and the peak DEM temperature agree well on smooth inputs, but the
 DEM shape can differ from demregpy where the iterative reweighting matters.
 
-References
-----------
+References:
 - Hannah, I. G. & Kontar, E. P. 2012, A&A 539, A146.
   DOI: 10.1051/0004-6361/201117576.
 - Hansen, P. C. 1998, *Rank-Deficient and Discrete Ill-Posed Problems*, SIAM
@@ -113,18 +111,16 @@ def _gsvd_pair(B: np.ndarray, Lz: np.ndarray):
     projection so the two parts decouple, then an SVD of the whitened response
     gives the filter factors ``c_i / (c_i^2 + lam^2)``.
 
-    Parameters
-    ----------
-    B  : (m, n) error-weighted, column-scaled design matrix (unit columns).
-    Lz : (p, n) regularization operator in the scaled variable.
+    Args:
+        B: (m, n) error-weighted, column-scaled design matrix (unit columns).
+        Lz: (p, n) regularization operator in the scaled variable.
 
-    Returns
-    -------
-    gamma : (k,) standard-form singular values c_i (descending).
-    U     : (m, k) left singular vectors of the whitened response.
-    zcols : (n, k) solution basis columns in z-space.
-    V_null: (n, q) orthonormal basis of null(Lz), q = n - rank(Lz).
-    BN    : (m, q) = B @ V_null (response of the null-space basis).
+    Returns:
+        gamma: (k,) standard-form singular values c_i (descending).
+        U: (m, k) left singular vectors of the whitened response.
+        zcols: (n, k) solution basis columns in z-space.
+        V_null: (n, q) orthonormal basis of null(Lz), q = n - rank(Lz).
+        BN: (m, q) = B @ V_null (response of the null-space basis).
     """
     _Ul, sl, Vlt = svd(Lz, full_matrices=True)
     Vl = Vlt.T
@@ -270,50 +266,37 @@ def dem_regularized(
 ) -> Tuple[np.ndarray, Dict]:
     """Linear regularized (Tikhonov / Hannah-Kontar-style) DEM inversion.
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
-        ``(n_pixels, n_channels)``.
-    errors : np.ndarray
-        1-sigma uncertainties, same shape as ``intensities``.
-    response : np.ndarray
-        Temperature response, shape ``(n_temps, n_channels)`` (same convention
-        as :func:`egghouse.dem.dem_sites` / :func:`dem_nnls`).
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_temps,)``.
-    reg_order : {0, 2}
-        Regularization operator order: 0 = identity (magnitude),
-        2 = second difference (smoothness). Default 2.
-    reg_tweak : float
-        Discrepancy-principle target multiplier; lambda is chosen per pixel so
-        the data chi^2 ~ ``reg_tweak * n_channels``. Larger -> smoother /
-        more regularized. Default 1.0.
-    lam_bounds : (float, float)
-        Search range for lambda, given *relative* to the generalized singular
-        value spectrum: the bisection scans
-        ``[gamma_min * lam_bounds[0], gamma_max * lam_bounds[1]]``. Anchoring to
-        gamma makes the search scale-invariant. Default ``(1e-3, 1e3)``.
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
+            ``(n_pixels, n_channels)``.
+        errors: 1-sigma uncertainties, same shape as ``intensities``.
+        response: Temperature response, shape ``(n_temps, n_channels)`` (same convention
+            as :func:`egghouse.dem.dem_sites` / :func:`dem_nnls`).
+        temperatures: Temperatures in Kelvin, shape ``(n_temps,)``.
+        reg_order: Regularization operator order: 0 = identity (magnitude),
+            2 = second difference (smoothness). Default 2.
+        reg_tweak: Discrepancy-principle target multiplier; lambda is chosen per pixel so
+            the data chi^2 ~ ``reg_tweak * n_channels``. Larger -> smoother /
+            more regularized. Default 1.0.
+        lam_bounds: Search range for lambda, given *relative* to the generalized singular
+            value spectrum: the bisection scans
+            ``[gamma_min * lam_bounds[0], gamma_max * lam_bounds[1]]``. Anchoring to
+            gamma makes the search scale-invariant. Default ``(1e-3, 1e3)``.
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
-        Non-negative (negatives clipped to zero).
-    info : dict
-        ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel),
-        ``lambda_map`` (per-pixel chosen lambda), ``reg_tweak``.
+    Returns:
+        dem: DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
+            Non-negative (negatives clipped to zero).
+        info: ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel),
+            ``lambda_map`` (per-pixel chosen lambda), ``reg_tweak``.
 
-    Notes
-    -----
-    This is a single-pass GSVD Tikhonov inversion with discrepancy-principle
-    lambda selection and positivity clipping. See the module docstring for what
-    parts of the full Hannah & Kontar (2012) / demregpy scheme are and are not
-    reproduced (notably the iterative data-derived constraint reweighting).
+    Note:
+        This is a single-pass GSVD Tikhonov inversion with discrepancy-principle
+        lambda selection and positivity clipping. See the module docstring for what
+        parts of the full Hannah & Kontar (2012) / demregpy scheme are and are not
+        reproduced (notably the iterative data-derived constraint reweighting).
 
-    References
-    ----------
-    Hannah & Kontar (2012, A&A 539, A146); Hansen (1998); Morozov (1966).
+    References:
+        Hannah & Kontar (2012, A&A 539, A146); Hansen (1998); Morozov (1966).
     """
     squeeze = intensities.ndim == 1
     intensities = np.atleast_2d(intensities).astype(np.float64)

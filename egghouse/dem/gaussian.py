@@ -18,8 +18,7 @@ represent multi-thermal or dual-peak plasma (e.g. a cool loop plus a hot flare
 component along the same line of sight). For such structure use a free-form
 inversion (``dem_nnls``) or a sparse / basis-pursuit inversion (``dem_sparse``).
 
-References
-----------
+References:
 - Aschwanden, M. J., Boerner, P., Schrijver, C. J. & Malanushenko, A. 2013,
   Sol. Phys. 283, 5. DOI 10.1007/s11207-011-9876-5 — Gaussian forward-fit DEM
   for SDO/AIA.
@@ -151,44 +150,31 @@ def dem_gaussian(
     ``logT_peak`` (bounded) and ``sigma > 0`` (bounded), using
     :func:`scipy.optimize.least_squares` (Aschwanden et al. 2013).
 
-    Parameters
-    ----------
-    intensities : np.ndarray
-        Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
-        ``(n_pixels, n_channels)``.
-    errors : np.ndarray
-        1-sigma uncertainties, same shape as ``intensities``.
-    response : np.ndarray
-        Temperature response, shape ``(n_temps, n_channels)`` (same convention
-        as :func:`egghouse.dem.dem_sites` / :func:`dem_nnls`).
-    temperatures : np.ndarray
-        Temperatures in Kelvin, shape ``(n_temps,)``.
-    logt_bounds : (float, float)
-        Inclusive bounds on the fitted peak log-temperature ``logT_peak``.
-    sigma_bounds : (float, float)
-        Bounds on the fitted Gaussian width ``sigma`` (in log-temperature).
-        The lower bound must be > 0.
-    max_nfev : int
-        Maximum function evaluations per pixel for the least-squares solver.
+    Args:
+        intensities: Observed intensities (DN/s/pixel), shape ``(n_channels,)`` or
+            ``(n_pixels, n_channels)``.
+        errors: 1-sigma uncertainties, same shape as ``intensities``.
+        response: Temperature response, shape ``(n_temps, n_channels)`` (same convention
+            as :func:`egghouse.dem.dem_sites` / :func:`dem_nnls`).
+        temperatures: Temperatures in Kelvin, shape ``(n_temps,)``.
+        logt_bounds: Inclusive bounds on the fitted peak log-temperature ``logT_peak``.
+        sigma_bounds: Bounds on the fitted Gaussian width ``sigma`` (in log-temperature).
+            The lower bound must be > 0.
+        max_nfev: Maximum function evaluations per pixel for the least-squares solver.
 
-    Returns
-    -------
-    dem : np.ndarray
-        DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
-    info : dict
-        ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), and the fitted
-        parameter maps ``em_peak``, ``logt_peak``, ``sigma`` (each shape
-        ``()`` for a single pixel or ``(n_pixels,)`` for a batch).
+    Returns:
+        dem: DEM in cm^-5 K^-1, shape ``(n_temps,)`` or ``(n_pixels, n_temps)``.
+        info: ``chi2`` (mean data chi^2), ``chi2_map`` (per pixel), and the fitted
+            parameter maps ``em_peak``, ``logt_peak``, ``sigma`` (each shape
+            ``()`` for a single pixel or ``(n_pixels,)`` for a batch).
 
-    Notes
-    -----
-    The single-Gaussian model assumes an *isothermal-ish*, single-peaked DEM.
-    It cannot represent multi-thermal or dual-peak plasma; for such structure
-    prefer :func:`dem_nnls` (free-form) or :func:`dem_sparse` (sparse).
+    Note:
+        The single-Gaussian model assumes an *isothermal-ish*, single-peaked DEM.
+        It cannot represent multi-thermal or dual-peak plasma; for such structure
+        prefer :func:`dem_nnls` (free-form) or :func:`dem_sparse` (sparse).
 
-    References
-    ----------
-    Aschwanden, M. J., et al. 2013, Sol. Phys. 283, 5.
+    References:
+        Aschwanden, M. J., et al. 2013, Sol. Phys. 283, 5.
     """
     if sigma_bounds[0] <= 0.0:
         raise ValueError(f"sigma lower bound must be > 0; got {sigma_bounds[0]}")

@@ -21,31 +21,21 @@ def circle_mask(
     Creates a 2D boolean array with True values inside (or outside) a circle.
     Commonly used for solar disk masking in SDO/AIA or H-alpha imagery.
 
-    Parameters
-    ----------
-    image_size : int or tuple of int
-        Size of the output mask. If int, creates a square mask (size, size).
-        If tuple, creates a mask with shape (height, width).
-    radius : float
-        Radius of the circle in pixels.
-    center : tuple of float, optional
-        Center coordinates as (cy, cx). If None, defaults to image center.
-    mask_type : {'inner', 'outer'}, optional
-        - 'inner': True inside the circle (default)
-        - 'outer': True outside the circle
+    Args:
+        image_size: Size of the output mask. If int, creates a square mask (size, size).
+            If tuple, creates a mask with shape (height, width).
+        radius: Radius of the circle in pixels.
+        center: Center coordinates as (cy, cx). If None, defaults to image center.
+        mask_type: - 'inner': True inside the circle (default)
+            - 'outer': True outside the circle
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Boolean mask with shape (height, width).
 
-    Raises
-    ------
-    ValueError
-        If mask_type is not 'inner' or 'outer'.
+    Raises:
+        ValueError: If mask_type is not 'inner' or 'outer'.
 
-    Examples
-    --------
+    Example:
     >>> # Mask for 4096x4096 SDO image with solar disk radius ~1600 pixels
     >>> disk_mask = circle_mask(4096, radius=1600, mask_type='inner')
     >>> masked_image = np.where(disk_mask, image, 0)
@@ -97,29 +87,19 @@ def annulus_mask(
     Useful for analyzing solar features at specific radial distances,
     such as the chromosphere or inner corona.
 
-    Parameters
-    ----------
-    image_size : int or tuple of int
-        Size of the output mask.
-    inner_radius : float
-        Inner radius of the annulus in pixels.
-    outer_radius : float
-        Outer radius of the annulus in pixels.
-    center : tuple of float, optional
-        Center coordinates as (cy, cx). If None, defaults to image center.
+    Args:
+        image_size: Size of the output mask.
+        inner_radius: Inner radius of the annulus in pixels.
+        outer_radius: Outer radius of the annulus in pixels.
+        center: Center coordinates as (cy, cx). If None, defaults to image center.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         Boolean mask with True values in the annular region.
 
-    Raises
-    ------
-    ValueError
-        If inner_radius >= outer_radius.
+    Raises:
+        ValueError: If inner_radius >= outer_radius.
 
-    Examples
-    --------
+    Example:
     >>> # Analyze region between 1.0 and 1.3 solar radii
     >>> solar_radius = 1600  # pixels
     >>> corona_ring = annulus_mask(4096, inner_radius=solar_radius,

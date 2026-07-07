@@ -30,33 +30,26 @@ def apply_colormap(
     RGB image. This is a pure index operation, so it is exact and fast (no
     interpolation).
 
-    Parameters
-    ----------
-    gray : np.ndarray
-        2D grayscale image. If dtype is not uint8, values are clipped to
-        [0, 255] and cast to uint8 before lookup (they are assumed to already
-        be on an 8-bit scale, e.g. the output of ``bytescale_image`` or
-        ``aia_intscale``).
-    lut : np.ndarray
-        Color lookup table of shape (256, 3), dtype uint8. Row ``i`` is the
-        ``(R, G, B)`` color for grayscale value ``i``.
+    Args:
+        gray: 2D grayscale image. If dtype is not uint8, values are clipped to
+            [0, 255] and cast to uint8 before lookup (they are assumed to
+            already be on an 8-bit scale, e.g. the output of ``bytescale_image``
+            or ``aia_intscale``).
+        lut: Color lookup table of shape (256, 3), dtype uint8. Row ``i`` is the
+            ``(R, G, B)`` color for grayscale value ``i``.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         RGB image of shape ``(*gray.shape, 3)``, dtype uint8.
 
-    Raises
-    ------
-    ValueError
-        If ``gray`` is not 2D or ``lut`` does not have shape (256, 3).
+    Raises:
+        ValueError: If ``gray`` is not 2D or ``lut`` does not have shape
+            (256, 3).
 
-    Examples
-    --------
-    >>> gray = np.array([[0, 128], [255, 64]], dtype=np.uint8)
-    >>> lut = np.stack([np.arange(256)] * 3, axis=1).astype(np.uint8)  # gray ramp
-    >>> apply_colormap(gray, lut).shape
-    (2, 2, 3)
+    Example:
+        >>> gray = np.array([[0, 128], [255, 64]], dtype=np.uint8)
+        >>> lut = np.stack([np.arange(256)] * 3, axis=1).astype(np.uint8)
+        >>> apply_colormap(gray, lut).shape
+        (2, 2, 3)
     """
     gray = np.asarray(gray)
     if gray.ndim != 2:
@@ -86,17 +79,12 @@ def lut_from_matplotlib(
     ``Colormap`` object) with :func:`apply_colormap`. Requires matplotlib
     (imported lazily).
 
-    Parameters
-    ----------
-    cmap : str or matplotlib.colors.Colormap
-        Colormap name (e.g. ``'inferno'``) or a Colormap instance.
-    n : int, optional
-        Number of LUT entries (default 256). Must be 256 to feed
-        :func:`apply_colormap`.
+    Args:
+        cmap: Colormap name (e.g. ``'inferno'``) or a Colormap instance.
+        n: Number of LUT entries (default 256). Must be 256 to feed
+            :func:`apply_colormap`.
 
-    Returns
-    -------
-    np.ndarray
+    Returns:
         LUT of shape ``(n, 3)``, dtype uint8.
     """
     try:
