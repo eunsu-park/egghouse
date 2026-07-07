@@ -120,6 +120,13 @@ Composable numpy transform factories; combine with `compose([...])`.
 | `mad` | `(x, *, center=None) -> float` | Median absolute deviation about the median |
 | `robust_sigma` | `(x, *, center=None) -> float` | Robust noise sigma `1.4826 * MAD(x)` |
 
+### Colorize (v0.11+)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `apply_colormap` | `(gray, lut) -> ndarray` | Map 8-bit grayscale → (H, W, 3) uint8 RGB via a (256, 3) LUT |
+| `lut_from_matplotlib` | `(cmap, n=256) -> ndarray` | Build a (256, 3) uint8 LUT from a matplotlib colormap (needs matplotlib) |
+
 ### Aliases
 
 | Alias | Function |
@@ -164,6 +171,19 @@ SDO/AIA and SDO/HMI data processing utilities.
 |----------|-----------|-------------|
 | `aia_intscale` | `(data, wavelength, ...) -> ndarray` | Wavelength-specific intensity scaling (94-6173 Å) |
 | `get_aia_calibration` | `(wavelength) -> dict` | Get calibration parameters for wavelength |
+
+### AIA color tables & colorization (v0.11+)
+
+Official AIA color tables (SolarSoft `aia_lct.pro` / sunpy) for the 10 channels
+94, 131, 171, 193, 211, 304, 335, 1600, 1700, 4500 Å. Default `source="numpy"` is
+a pure-NumPy reproduction (no dependency), bit-identical to `source="sunpy"`.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `aia_color_lut` | `(wavelength, source="numpy") -> ndarray` | Official AIA color table as a (256, 3) uint8 RGB LUT |
+| `aia_colorize` | `(image, wavelnth, exptime=None, source="numpy") -> ndarray` | Colorize an AIA image (raw+exptime → scaled, or 8-bit) → (H, W, 3) uint8 |
+| `aia_colormap` | `(wavelength) -> Colormap` | sunpy's AIA table as a matplotlib `Colormap` (needs sunpy) |
+| `AIA_COLOR_WAVELENGTHS` | `tuple` | The 10 channels with an official color table |
 
 ### HMI
 

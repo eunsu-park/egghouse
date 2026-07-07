@@ -16,7 +16,8 @@ egghouse/image/
 ├── stats.py      # statistics/analysis (normalize, histogram_eq, percentile_scale, find_center)
 ├── metrics.py    # image quality metrics (psnr, ssim, ms_ssim, weak_signal_contrast) [v0.9+]
 ├── transforms.py # composable numpy transforms (compose, percentile_clip, ...) [v0.9+]
-└── noise.py      # robust noise scale (mad, robust_sigma) [v0.9+]
+├── noise.py      # robust noise scale (mad, robust_sigma) [v0.9+]
+└── colorize.py   # LUT-based grayscale -> RGB (apply_colormap, lut_from_matplotlib) [v0.11+]
 ```
 
 ---
@@ -105,6 +106,27 @@ out = pipe(frame)
 ```python
 from egghouse.image import robust_sigma
 sigma = robust_sigma(frame)   # not pulled by hot pixels/transients
+```
+
+### Colorize (grayscale → RGB, v0.11+)
+Instrument-agnostic colorization: map an 8-bit grayscale image through a
+256-entry RGB lookup table (LUT). Domain-standard SDO/AIA color tables that
+produce these LUTs live in `egghouse.sdo` (`aia_color_lut`, `aia_colorize`).
+
+| Function | Description |
+|------|------|
+| `apply_colormap` | Map `(H, W)` uint8 → `(H, W, 3)` uint8 RGB via a `(256, 3)` LUT (exact index lookup) |
+| `lut_from_matplotlib` | Build a `(256, 3)` uint8 LUT from any matplotlib colormap (needs matplotlib) |
+
+```python
+from egghouse.image import apply_colormap, lut_from_matplotlib
+
+lut = lut_from_matplotlib('inferno')      # (256, 3) uint8
+rgb = apply_colormap(gray_u8, lut)        # (H, W, 3) uint8
+
+# With the official AIA tables:
+from egghouse.sdo import aia_color_lut
+rgb = apply_colormap(gray_u8, aia_color_lut(171))
 ```
 
 ---

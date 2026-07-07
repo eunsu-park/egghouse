@@ -5,6 +5,7 @@ Provides functions for processing and visualizing SDO/AIA and SDO/HMI data.
 
 Modules:
     aia: AIA intensity scaling and calibration utilities.
+    aia_color: Domain-standard AIA color tables (numpy + sunpy) and colorization.
     hmi: HMI magnetogram processing utilities.
     core: Common utilities for SDO data (FITS parsing, validation).
     stacking: Solar rotation-corrected image stacking for HMI.
@@ -15,6 +16,12 @@ Modules:
 """
 
 from .aia import aia_intscale, AIA_CALIBRATION, get_aia_calibration
+from .aia_color import (
+    aia_color_lut,
+    aia_colormap,
+    aia_colorize,
+    AIA_COLOR_WAVELENGTHS,
+)
 from .hmi import hmi_intscale, hmi_field_strength
 from .core import (
     parse_fits_header,
@@ -92,6 +99,11 @@ __all__ = [
     'aia_intscale',
     'AIA_CALIBRATION',
     'get_aia_calibration',
+    # AIA domain-standard color tables & colorization
+    'aia_color_lut',
+    'aia_colormap',
+    'aia_colorize',
+    'AIA_COLOR_WAVELENGTHS',
     # HMI
     'hmi_intscale',
     'hmi_field_strength',

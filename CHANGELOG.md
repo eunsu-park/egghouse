@@ -6,6 +6,27 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Added — domain-standard AIA color tables & colorization
+
+- `egghouse.sdo.aia_color` — the official SDO/AIA color tables (SolarSoft
+  `aia_lct.pro` by K. Schrijver, as adopted by sunpy) for the ten channels
+  94, 131, 171, 193, 211, 304, 335, 1600, 1700, 4500 Å:
+  - `aia_color_lut(wavelength, source="numpy")` → `(256, 3)` uint8 RGB LUT.
+    The default `source="numpy"` is a **pure-NumPy** reproduction (embeds the
+    IDL "Red Temperature" base table; no optional dependency) and is verified
+    **bit-identical** to `source="sunpy"` for all ten channels.
+  - `aia_colorize(image, wavelnth, exptime=None, source="numpy")` → `(H, W, 3)`
+    uint8. With `exptime`, the raw image is intensity-scaled via `aia_intscale`
+    first; otherwise an 8-bit grayscale input is colorized directly.
+  - `aia_colormap(wavelength)` → matplotlib `Colormap` via sunpy (optional).
+  - `AIA_COLOR_WAVELENGTHS` constant.
+- `egghouse.image.colorize` — instrument-agnostic primitives backing the above:
+  `apply_colormap(gray, lut)` (exact 256-entry LUT lookup, `(H, W)` uint8 →
+  `(H, W, 3)` uint8) and `lut_from_matplotlib(cmap, n=256)`.
+- `setup.py`: `sdo`/`all` extras now include `matplotlib>=3.5` (only the
+  optional sunpy-sourced tables / `aia_colormap` need it; the default numpy
+  path needs none of it).
+
 ### Changed — `egghouse.swdb` lazy-loads its DB submodules
 
 - `egghouse.swdb.__init__` no longer eagerly imports `register` / `query`

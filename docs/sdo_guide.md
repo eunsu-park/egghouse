@@ -15,6 +15,8 @@ SDO (Solar Dynamics Observatory) AIA and HMI data processing utilities.
 
 The SDO module provides specialized tools for processing solar observation data:
 - **AIA**: multi-wavelength EUV/UV image intensity scaling
+- **AIA color tables**: official per-wavelength colorization (`aia_lct.pro` / sunpy),
+  with a pure-NumPy path that needs no optional dependency
 - **HMI**: magnetic field data scaling and vector field processing
 - **Level 1.5**: Level 1.0 → 1.5 preprocessing (north-up, centered)
 - **Stacking**: solar-rotation-corrected image stacking
@@ -72,6 +74,50 @@ print(f"Normalization exposure time: {cal['norm_exptime']}")
 print(f"Min/Max: {cal['vmin']}, {cal['vmax']}")
 print(f"Scale method: {cal['scale']}")
 ```
+
+### AIA Color Tables & Colorization (v0.11+)
+
+The **official** AIA color tables (SolarSoft `aia_lct.pro`, K. Schrijver 2010, as
+adopted by sunpy) for all ten channels: 94, 131, 171, 193, 211, 304, 335, 1600,
+1700, 4500 Å. Each is exposed as a 256-entry `(R, G, B)` uint8 lookup table (LUT).
+
+Two interchangeable sources are provided and **always agree bit-for-bit**:
+
+| `source` | Backing | Dependency |
+|----------|---------|------------|
+| `"numpy"` (default) | Pure-NumPy reproduction (embeds the IDL "Red Temperature" base + the analytic channel curves) | none |
+| `"sunpy"` | sunpy's reference `aia_color_table` | `sunpy`, `matplotlib` |
+
+| Function | Description |
+|------|------|
+| `aia_color_lut(wavelength, source="numpy")` | Official AIA color table as a `(256, 3)` uint8 LUT |
+| `aia_colorize(image, wavelnth, exptime=None, source="numpy")` | Colorize an AIA image → `(H, W, 3)` uint8 |
+| `aia_colormap(wavelength)` | sunpy's AIA table as a matplotlib `Colormap` (needs sunpy) |
+| `AIA_COLOR_WAVELENGTHS` | Tuple of the ten channels with a color table |
+
+```python
+from egghouse.sdo import aia_colorize, aia_color_lut, AIA_COLOR_WAVELENGTHS
+
+# 1) Raw counts + EXPTIME: intensity-scaled (aia_intscale) then colorized.
+rgb = aia_colorize(data, 171, exptime=exptime)     # (H, W, 3) uint8
+
+# 2) Already 8-bit grayscale (e.g. output of aia_intscale): colorized directly.
+gray = aia_intscale(data, exptime, 304)            # uint8
+rgb = aia_colorize(gray, 304)
+
+# 3) Just the color table (feed egghouse.image.apply_colormap yourself).
+lut = aia_color_lut(193)                            # (256, 3) uint8
+lut = aia_color_lut(193, source="sunpy")            # identical values, via sunpy
+
+# For matplotlib plotting, get the Colormap object (requires sunpy):
+# from egghouse.sdo import aia_colormap
+# ax.imshow(data, cmap=aia_colormap(171))
+```
+
+> The `"numpy"` path is verified bit-identical to sunpy for all ten channels, so
+> you get the domain-standard colors with zero optional dependencies. Use
+> `source="sunpy"` or `aia_colormap` only when you specifically want sunpy's
+> `Colormap` object for matplotlib.
 
 ---
 

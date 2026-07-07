@@ -45,10 +45,13 @@ setup(
             "PyWavelets>=1.4",
             "bm3d>=4.0",
         ],
-        # SDO processing (full functionality)
+        # SDO processing (full functionality). matplotlib backs the optional
+        # sunpy-sourced AIA color tables (egghouse.sdo.aia_colormap /
+        # aia_color_lut(source="sunpy")); the default numpy path needs none of it.
         "sdo": [
             "astropy>=5.0",
             "sunpy>=4.0",
+            "matplotlib>=3.5",
         ],
         # DEM analysis (temperature response functions)
         # fiasco backs temperature_response_from_chianti (optional, guarded by
@@ -79,6 +82,7 @@ setup(
             "paramiko>=3.0.0",
             "astropy>=5.0",
             "sunpy>=4.0",
+            "matplotlib>=3.5",
             "aiapy>=0.7",
             "fiasco",
             "scikit-image>=0.20",

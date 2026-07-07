@@ -12,6 +12,7 @@ Modules:
     augment: Paired random crop / flip / rotation for N2N-style training.
     filters: Gaussian, median, and edge detection filters.
     stats: Normalization, histogram operations, and image statistics.
+    colorize: Apply a 256-entry RGB LUT to an 8-bit grayscale image.
 
 Example:
     >>> from egghouse.image import resize_image, circle_mask, bytescale_image
@@ -108,6 +109,11 @@ from .transforms import (
     circular_mask,
 )
 
+from .colorize import (
+    apply_colormap,
+    lut_from_matplotlib,
+)
+
 __all__ = [
     # Core transformations
     'resize_image',
@@ -160,6 +166,9 @@ __all__ = [
     'normalize_minmax',
     'normalize_log1p',
     'circular_mask',
+    # Colorization
+    'apply_colormap',
+    'lut_from_matplotlib',
     # Convenience aliases
     'resize',
     'rotate',

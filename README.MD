@@ -32,9 +32,9 @@ pip install -e .
 | Module | Required | Optional |
 |--------|----------|----------|
 | Core | numpy, scipy, pandas | - |
-| image | numpy, scipy | - |
+| image | numpy, scipy | matplotlib (`lut_from_matplotlib`) |
 | denoise | numpy, scipy | scikit-image, PyWavelets, bm3d |
-| sdo | numpy, scipy | astropy, sunpy, aiapy |
+| sdo | numpy, scipy | astropy, sunpy, aiapy, matplotlib |
 | dem | numpy, scipy | fiasco (CHIANTI temperature response) |
 | config | pyyaml | - |
 | database | psycopg2-binary | pyyaml |
@@ -90,7 +90,8 @@ dem, info = dem_sites(intensities, errors, response, temps)
 
 ### `egghouse.image`
 Generic image processing utilities. Submodules: `core` (resize/rotate/bytescale),
-`masking`, `spatial`, `filters`, `stats`, plus `metrics`, `transforms`, `noise`.
+`masking`, `spatial`, `filters`, `stats`, plus `metrics`, `transforms`, `noise`,
+`colorize` (LUT-based grayscale → RGB).
 
 ```python
 from egghouse.image import resize_image, rotate_image, bytescale_image
@@ -130,6 +131,11 @@ g, r2, r_squared = fit.g, fit.r2, fit.r_squared  # VST (generalized Anscombe) pa
 from egghouse.image import transforms as T
 pipe = T.compose([T.to_float32, T.percentile_clip(0.5, 99.5), T.normalize_minmax()])
 out = pipe(frame)
+
+# Colorize an 8-bit grayscale image through a (256, 3) RGB LUT
+from egghouse.image import apply_colormap, lut_from_matplotlib
+rgb = apply_colormap(gray_u8, lut_from_matplotlib('inferno'))  # (H, W, 3) uint8
+# Domain-standard AIA color tables live in egghouse.sdo (see below).
 ```
 
 ### `egghouse.denoise`
@@ -156,6 +162,13 @@ from egghouse.sdo import aia_intscale, hmi_intscale, to_level15, Stacking
 
 # AIA intensity scaling
 scaled = aia_intscale(aia_data, wavelength=171)
+
+# Colorize with the official per-wavelength AIA color table (SolarSoft aia_lct.pro).
+# Default source="numpy" is a pure-NumPy reproduction (no sunpy needed) and is
+# bit-identical to source="sunpy". Covers 94/131/171/193/211/304/335/1600/1700/4500 Å.
+from egghouse.sdo import aia_colorize, aia_color_lut
+rgb = aia_colorize(aia_data, 171, exptime=2.9)  # raw + EXPTIME -> (H, W, 3) uint8
+lut = aia_color_lut(171)                         # (256, 3) uint8 RGB table
 
 # HMI magnetogram scaling
 mag_scaled = hmi_intscale(hmi_data, vmin=-500, vmax=500)
