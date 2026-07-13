@@ -6,6 +6,21 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Changed — solar stacks promoted to core dependencies
+
+- `install_requires` now includes the SDO / DEM / transfer / FITS stacks
+  (`aiapy`, `drms`, `fiasco`, `sunpy`, `astropy`, `matplotlib`, `requests`,
+  `beautifulsoup4`) that were previously optional extras, so a plain
+  `pip install -e .` (or `pip install egghouse`) yields a fully working install
+  — JSOC download, Level-1.5 prep, CHIANTI temperature response, and HTTP
+  download all work with no extras. Only niche stacks stay optional.
+- The `sdo`, `dem`, `transfer`, and `fits` extras are retained as **empty no-op
+  aliases** so existing `egghouse[sdo]`-style references keep resolving.
+- Fixed a packaging gap: `drms` (JSOC) and `aiapy` (prep/response) were used by
+  `egghouse.sdo` but declared in no installable extra.
+- Added an `image` extra (`opencv-python`) for the OpenCV-backed transform in
+  `egghouse.image.transforms`, which was an undeclared lazy import.
+
 ### Added — domain-standard AIA color tables & colorization
 
 - `egghouse.sdo.aia_color` — the official SDO/AIA color tables (SolarSoft

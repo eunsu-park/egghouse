@@ -14,30 +14,34 @@ setup(
     packages=find_packages(exclude=["tests", "tests.*", "examples"]),
     python_requires=">=3.9",
 
+    # Core dependencies. The SDO / DEM / transfer stacks were promoted from
+    # optional extras into core so a plain `pip install -e .` yields a fully
+    # working install (JSOC download via drms, Level-1.5 prep + wavelength
+    # response via aiapy/sunpy, CHIANTI temperature response via fiasco, HTTP
+    # download via requests/bs4). Only genuinely niche stacks stay in extras.
     install_requires=[
         "numpy>=1.20.0",
         "scipy>=1.7.0",
         "pandas>=1.3.0",
+        "astropy>=5.0",
+        "sunpy>=4.0",
+        "matplotlib>=3.5",
+        "aiapy>=0.7",
+        "drms>=0.7",
+        "fiasco",
+        "requests>=2.25.0",
+        "beautifulsoup4>=4.9.0",
     ],
 
     extras_require={
-        # Database module
+        # Database module (egghouse.database)
         "database": [
             "psycopg2-binary>=2.9.0",
             "pyyaml>=6.0",
         ],
-        # Transfer module (HTTP downloads)
-        "transfer": [
-            "requests>=2.25.0",
-            "beautifulsoup4>=4.9.0",
-        ],
         # SFTP support (for transfer module)
         "sftp": [
             "paramiko>=3.0.0",
-        ],
-        # FITS I/O (astropy-based functions)
-        "fits": [
-            "astropy>=5.0",
         ],
         # Classical denoisers (egghouse.denoise)
         "denoise": [
@@ -45,22 +49,9 @@ setup(
             "PyWavelets>=1.4",
             "bm3d>=4.0",
         ],
-        # SDO processing (full functionality). matplotlib backs the optional
-        # sunpy-sourced AIA color tables (egghouse.sdo.aia_colormap /
-        # aia_color_lut(source="sunpy")); the default numpy path needs none of it.
-        "sdo": [
-            "astropy>=5.0",
-            "sunpy>=4.0",
-            "matplotlib>=3.5",
-        ],
-        # DEM analysis (temperature response functions)
-        # fiasco backs temperature_response_from_chianti (optional, guarded by
-        # HAS_FIASCO); aiapy builds the AIA wavelength response in egghouse.sdo.
-        "dem": [
-            "aiapy>=0.7",
-            "astropy>=5.0",
-            "sunpy>=4.0",
-            "fiasco",
+        # OpenCV-backed image transform (egghouse.image.transforms, lazy import)
+        "image": [
+            "opencv-python>=4.5",
         ],
         # Config module (YAML support)
         "config": [
@@ -73,21 +64,23 @@ setup(
             "black>=23.0",
             "flake8>=6.0",
         ],
-        # All optional dependencies
+        # Backward-compat no-op aliases: the SDO / DEM / transfer / FITS stacks
+        # were promoted into core (a plain install now includes them), so these
+        # extras install nothing extra — kept only so existing `egghouse[sdo]`
+        # style references keep resolving. Prefer a plain `pip install egghouse`.
+        "sdo": [],
+        "dem": [],
+        "transfer": [],
+        "fits": [],
+        # All optional dependencies (beyond core)
         "all": [
             "psycopg2-binary>=2.9.0",
             "pyyaml>=6.0",
-            "requests>=2.25.0",
-            "beautifulsoup4>=4.9.0",
             "paramiko>=3.0.0",
-            "astropy>=5.0",
-            "sunpy>=4.0",
-            "matplotlib>=3.5",
-            "aiapy>=0.7",
-            "fiasco",
             "scikit-image>=0.20",
             "PyWavelets>=1.4",
             "bm3d>=4.0",
+            "opencv-python>=4.5",
         ],
     },
 
