@@ -6,6 +6,13 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Docs
+
+- Condensed `README.MD` (517 → 132 lines) into an orientation/index: per-module
+  cookbooks now live solely in `docs/*_guide.md`, and the dependency section was
+  corrected to reflect the solar stacks being core (not optional) and the new
+  `image` extra. Added the previously-unlinked `docs/aia_pipeline_guide.md`.
+
 ### Changed — solar stacks promoted to core dependencies
 
 - `install_requires` now includes the SDO / DEM / transfer / FITS stacks
