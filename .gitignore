@@ -255,10 +255,8 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/python,windows,macos,linux,synology
 
 ### Claude Code ###
-# Personal, machine-local Claude Code settings and stray atomic-write temp files.
-# Shared config (.claude/settings.json, commands, agents) and CLAUDE.md are
-# intentionally NOT ignored so they can be committed for the team.
-.claude/settings.local.json
-.claude/*.local.json
-.claude/*.tmp.*
-.claude/**/*.tmp.*
+# Claude Code artifacts are kept out of version control entirely: the whole
+# .claude/ directory and any CLAUDE.md instruction files stay local-only.
+.claude/
+CLAUDE.md
+**/CLAUDE.md
