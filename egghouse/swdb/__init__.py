@@ -31,6 +31,7 @@ from .swpc import (
     parse_alerts,
     parse_3day_forecast,
 )
+from .cme import parse_donki_cme, parse_cactus
 
 __all__ = [
     "ValidationResult",
@@ -53,6 +54,8 @@ __all__ = [
     "parse_solar_probabilities",
     "parse_alerts",
     "parse_3day_forecast",
+    "parse_donki_cme",
+    "parse_cactus",
 ]
 
 # `register`/`query` pull in `egghouse.database` (→ psycopg2). Load them
