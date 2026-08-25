@@ -140,8 +140,10 @@ def photon_transfer_fit(
 
     Returns:
         (g, r2, r_squared)
-        Slope, intercept, and coefficient of determination. ``(nan, nan, nan)``
-        if fewer than two valid points remain.
+        Slope, intercept, and coefficient of determination. When ``weights``
+        are given the coefficient of determination is weighted with the same
+        weights as the fit, so sparsely populated outlier bins do not
+        dominate it. ``(nan, nan, nan)`` if fewer than two valid points remain.
     """
     x = np.asarray(intensity, dtype=np.float64).ravel()
     y = np.asarray(variance, dtype=np.float64).ravel()
@@ -152,11 +154,46 @@ def photon_transfer_fit(
         m &= np.isfinite(w) & (w > 0)
     if int(m.sum()) < 2:
         return float("nan"), float("nan"), float("nan")
-    g, r2 = np.polyfit(x[m], y[m], 1, w=(w[m] if w is not None else None))
+    ww = w[m] if w is not None else np.ones(int(m.sum()))
+    g, r2 = np.polyfit(x[m], y[m], 1, w=ww)
     pred = g * x[m] + r2
-    ss_res = float(np.sum((y[m] - pred) ** 2))
-    ss_tot = float(np.sum((y[m] - y[m].mean()) ** 2)) + 1e-12
+    ss_res = float(np.sum(ww * (y[m] - pred) ** 2))
+    y_bar = float(np.sum(ww * y[m]) / np.sum(ww))
+    ss_tot = float(np.sum(ww * (y[m] - y_bar) ** 2)) + 1e-12
     return float(g), float(r2), 1.0 - ss_res / ss_tot
+
+
+def theil_sen_fit(
+    x: np.ndarray,
+    y: np.ndarray,
+) -> tuple[float, float]:
+    """Robust line ``y = g * x + r2`` by the Theil-Sen estimator.
+
+    The slope is the median of all pairwise slopes and the intercept the
+    median of ``y - g * x``; the fit tolerates up to ~29 % outlying points,
+    which makes it the right choice for photon-transfer bins where a
+    minority of bins is dominated by scene change rather than noise.
+
+    Args:
+        x, y: Matched samples (flattened; non-finite pairs dropped).
+
+    Returns:
+        ``(g, r2)``; ``(nan, nan)`` with fewer than two valid points.
+    """
+    x = np.asarray(x, dtype=np.float64).ravel()
+    y = np.asarray(y, dtype=np.float64).ravel()
+    m = np.isfinite(x) & np.isfinite(y)
+    x, y = x[m], y[m]
+    n = x.size
+    if n < 2:
+        return float("nan"), float("nan")
+    i, j = np.triu_indices(n, k=1)
+    dx = x[j] - x[i]
+    ok = dx != 0
+    if not np.any(ok):
+        return float("nan"), float("nan")
+    g = float(np.median((y[j] - y[i])[ok] / dx[ok]))
+    return g, float(np.median(y - g * x))
 
 
 class PoissonGaussianNoise(NamedTuple):

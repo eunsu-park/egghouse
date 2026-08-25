@@ -81,6 +81,7 @@ from .noise import (
     robust_sigma,
     gaussian_core_sigma,
     photon_transfer_fit,
+    theil_sen_fit,
     poisson_gaussian_noise,
     PoissonGaussianNoise,
 )
@@ -146,6 +147,7 @@ __all__ = [
     'robust_sigma',
     'gaussian_core_sigma',
     'photon_transfer_fit',
+    'theil_sen_fit',
     'poisson_gaussian_noise',
     'PoissonGaussianNoise',
     # Image-quality metrics
