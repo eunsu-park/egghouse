@@ -6,6 +6,17 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Added — Poisson-Gaussian primitives for the lolipop evaluation rail
+
+- `egghouse.denoise.anscombe.generalized_forward` / `generalized_inverse`: the
+  generalized Anscombe transform for Poisson-Gaussian data (gain, read noise,
+  offset) and its exact unbiased inverse via the Poisson closed form
+  (Makitalo & Foi 2013). Mean-unbiasedness at 0.5–100 counts is covered by tests.
+- `egghouse.image.noise.poisson_gaussian_noise(..., clip_per_bin=True)`: robust
+  outlier clip estimated inside each intensity bin (photon-transfer-curve
+  convention) instead of one global sigma, so cosmic rays are rejected without
+  truncating the wide high-intensity noise. Default unchanged (global clip).
+
 ### Docs
 
 - Condensed `README.MD` (517 → 132 lines) into an orientation/index: per-module

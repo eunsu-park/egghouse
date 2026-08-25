@@ -186,6 +186,7 @@ def poisson_gaussian_noise(
     intensity_range: tuple[float, float] | None = None,
     clip: float | None = 6.0,
     min_count: int = 1,
+    clip_per_bin: bool = False,
 ) -> PoissonGaussianNoise:
     """Estimate signal-dependent noise ``sigma^2(I) = g*I + r2`` from a frame pair.
 
@@ -208,6 +209,12 @@ def poisson_gaussian_noise(
         clip: Drop pixels whose ``|D|`` exceeds ``clip`` robust sigmas
             (transients / cosmic rays). ``None`` disables clipping. Default 6.0.
         min_count: Minimum pixels per bin for a bin to enter the fit. Default 1.
+        clip_per_bin: If True, apply the ``clip`` rule with a robust sigma
+            estimated *inside each intensity bin* instead of one global sigma.
+            On signal-dependent noise the global rule clips legitimate
+            high-intensity noise (where sigma is largest) while leaving
+            low-intensity outliers untouched; the per-bin rule is the
+            photon-transfer-curve convention. Default False (global).
 
     Returns:
         ``(g, r2, r_squared, intensity, variance, count)``.
@@ -219,7 +226,7 @@ def poisson_gaussian_noise(
     inten = 0.5 * (a + b)
     diff = a - b
     m = np.isfinite(inten) & np.isfinite(diff) & (inten > 0)
-    if clip is not None:
+    if clip is not None and not clip_per_bin:
         d = diff[m]
         scale = _MAD_TO_SIGMA * float(np.median(np.abs(d - np.median(d)))) + 1e-12
         m &= np.abs(diff) < clip * scale
@@ -240,6 +247,17 @@ def poisson_gaussian_noise(
     idx = np.digitize(inten, edges) - 1
     v = (idx >= 0) & (idx < bins)
     idx, ii, dd = idx[v], inten[v], diff[v]
+    if clip is not None and clip_per_bin:
+        keep = np.ones(idx.shape, dtype=bool)
+        for k in range(bins):
+            sel = idx == k
+            if int(sel.sum()) < 2:
+                continue
+            d = dd[sel]
+            med = float(np.median(d))
+            scale = _MAD_TO_SIGMA * float(np.median(np.abs(d - med))) + 1e-12
+            keep[sel] = np.abs(d - med) < clip * scale
+        idx, ii, dd = idx[keep], ii[keep], dd[keep]
     count = np.bincount(idx, minlength=bins).astype(np.float64)
     sum_i = np.bincount(idx, weights=ii, minlength=bins)
     sum_d2 = np.bincount(idx, weights=dd * dd, minlength=bins)

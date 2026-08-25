@@ -21,12 +21,19 @@ uses the fraction of *negative* pixels (~50% on zero-centred data,
 outputs (background-subtracted, temporal-difference) and tight-tailed
 ones (radially normalised z-scores).
 
+For Poisson-Gaussian data (shot noise plus read noise, the raw-CCD case)
+use the generalized transform pair `generalized_forward` /
+`generalized_inverse`, parameterised by gain, read noise and offset.
+
 Algorithm references:
   Anscombe, F.J. (1948). "The transformation of Poisson, binomial and
   negative-binomial data," Biometrika. — forward VST.
   Makitalo, M., Foi, A. (2011). "Optimal inversion of the Anscombe
   transformation in low-count Poisson image denoising," IEEE TIP. — closed
   form for the exact unbiased inverse used here.
+  Makitalo, M., Foi, A. (2013). "Optimal inversion of the generalized
+  Anscombe transformation for Poisson-Gaussian noise," IEEE TIP 22(1),
+  91-103. — generalized transform and its exact unbiased inverse.
 """
 
 from __future__ import annotations
@@ -70,6 +77,73 @@ def inverse(z: np.ndarray) -> np.ndarray:
         - 1.0 / 8.0
     )
     return np.where(z > floor, inv, 0.0)
+
+
+def generalized_forward(
+    y: np.ndarray,
+    gain_dn_per_e: float,
+    read_noise_dn: float,
+    offset_dn: float = 0.0,
+) -> np.ndarray:
+    """Applies the generalized Anscombe transform (GAT) for Poisson-Gaussian data.
+
+    Model (Makitalo & Foi 2013): ``y = a * P(lambda) + N(mu, sigma^2)`` in DN,
+    with ``a`` the gain in DN per electron, ``sigma`` the read noise in DN and
+    ``mu`` the offset (bias) in DN. The transform
+
+        z = (2 / a) * sqrt(a * y + 3/8 * a^2 + sigma^2 - a * mu)
+
+    maps ``y`` to approximately unit-variance Gaussian data, so that any AWGN
+    denoiser can be applied. Pixels whose argument is negative (below the
+    noise floor) are clamped to zero before the square root.
+
+    Args:
+      y: Raw data in DN (any shape).
+      gain_dn_per_e: Gain ``a`` in DN per electron (the *inverse* of the
+        usual e-/DN camera gain).
+      read_noise_dn: Read-noise standard deviation in DN.
+      offset_dn: Additive offset (bias) in DN. Default 0.
+
+    Returns:
+      Stabilised array of the same shape, float64.
+    """
+    a = float(gain_dn_per_e)
+    arg = a * np.asarray(y, dtype=np.float64) + 0.375 * a * a \
+        + float(read_noise_dn) ** 2 - a * float(offset_dn)
+    return (2.0 / a) * np.sqrt(np.maximum(arg, 0.0))
+
+
+def generalized_inverse(
+    z: np.ndarray,
+    gain_dn_per_e: float,
+    read_noise_dn: float,
+    offset_dn: float = 0.0,
+) -> np.ndarray:
+    """Applies the exact unbiased inverse of the GAT (Makitalo & Foi 2013).
+
+    Uses the closed-form identity that reduces the Poisson-Gaussian case to
+    the Poisson one: with ``p' = P(lambda) + (n - mu)/a + sigma^2/a^2`` the
+    GAT of ``y`` equals the Anscombe transform of ``p'``, whose mean and
+    variance are both ``lambda + sigma^2/a^2``, so
+
+        E[y | z] = a * I_A^{-1}(z) - sigma^2 / a + mu
+
+    where ``I_A^{-1}`` is the closed-form exact unbiased inverse of the
+    Anscombe transform (``inverse``). The mean-preservation of this inverse
+    is checked numerically in the test-suite at low counts, where the
+    algebraic inverse is biased.
+
+    Args:
+      z: Denoised data in the stabilised domain.
+      gain_dn_per_e, read_noise_dn, offset_dn: Same parameters as
+        ``generalized_forward``.
+
+    Returns:
+      Estimate of the noise-free data in DN, float64.
+    """
+    a = float(gain_dn_per_e)
+    return a * inverse(np.asarray(z, dtype=np.float64)) \
+        - float(read_noise_dn) ** 2 / a + float(offset_dn)
 
 
 def _has_substantial_negative_mass(image: np.ndarray) -> bool:
