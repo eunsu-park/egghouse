@@ -45,7 +45,7 @@ def _gaussian_window(size: int, sigma: float) -> np.ndarray:
     return np.outer(g, g)
 
 
-def _ssim_components(
+def _ssim_maps(
     x: np.ndarray,
     y: np.ndarray,
     data_range: float,
@@ -53,8 +53,8 @@ def _ssim_components(
     sigma: float = 1.5,
     K1: float = 0.01,
     K2: float = 0.03,
-) -> tuple[float, float]:
-    """Returns (luminance, contrast_structure) — the L and CS pieces of SSIM.
+) -> tuple[np.ndarray, np.ndarray]:
+    """Returns the per-window (luminance, contrast_structure) maps of SSIM.
 
     Implementation follows Wang et al. 2004: Gaussian-weighted local stats
     with K1=0.01, K2=0.03, 11x11 window, sigma=1.5. 'valid' convolution
@@ -80,6 +80,19 @@ def _ssim_components(
 
     luminance_map = (2.0 * mu_xy + C1) / (mu_xx + mu_yy + C1)
     cs_map = (2.0 * sigma_xy + C2) / (sigma_xx + sigma_yy + C2)
+    return luminance_map, cs_map
+
+
+def _ssim_components(
+    x: np.ndarray,
+    y: np.ndarray,
+    *,
+    data_range: float,
+    win_size: int = 11,
+    sigma: float = 1.5,
+) -> tuple[float, float]:
+    """Mean luminance and mean contrast-structure terms (used by ms_ssim)."""
+    luminance_map, cs_map = _ssim_maps(x, y, data_range=data_range, win_size=win_size, sigma=sigma)
     return float(luminance_map.mean()), float(cs_map.mean())
 
 
@@ -136,13 +149,15 @@ def ssim(
       1.0 when image == reference.
     """
     dr = _resolve_data_range(reference, data_range)
-    L, CS = _ssim_components(
+    luminance_map, cs_map = _ssim_maps(
         image.astype(np.float64),
         reference.astype(np.float64),
         data_range=dr,
         win_size=win_size,
     )
-    return float(L * CS)
+    # Wang et al. (2004): the mean of the per-window SSIM map, not the
+    # product of the two map means (E[l*cs] != E[l]E[cs]).
+    return float((luminance_map * cs_map).mean())
 
 
 def ms_ssim(
