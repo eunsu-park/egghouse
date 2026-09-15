@@ -17,6 +17,17 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
   convention) instead of one global sigma, so cosmic rays are rejected without
   truncating the wide high-intensity noise. Default unchanged (global clip).
 
+### Fixed
+
+- `egghouse.transfer.download_single_file`: a zero-byte file at the destination
+  no longer counts as a completed download. With `overwrite=False` the function
+  returned True for any existing path, size unchecked; since callers dedup on
+  presence, an empty file parked there was permanent -- nothing re-fetched it and
+  every later run reported success. Empty destinations are now treated as absent
+  and fetched again. A truncated but non-empty file is still not detected, which
+  would need a HEAD per existing file; `Content-Length` is verified on the write
+  path, so a short destination came from outside this function.
+
 ### Docs
 
 - Condensed `README.MD` (517 → 132 lines) into an orientation/index: per-module

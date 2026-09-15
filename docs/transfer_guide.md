@@ -65,6 +65,28 @@ success = download_single_file(
 )
 ```
 
+### Skipping Files Already Present
+
+With `overwrite=False` (the default) an existing destination is reported as a
+success without contacting the server, which is what makes a re-run of a large
+collection cheap. One exception: a **zero-byte** file is treated as absent and
+fetched again. An empty file is the residue of a download rather than one, and
+because callers dedup on presence, returning success for it would park it there
+permanently -- nothing would re-fetch it and every later run would report
+success.
+
+A truncated but non-empty file is *not* detected. Knowing the expected size
+would mean a HEAD request per existing file, which over an archive that is
+already complete costs a round-trip per file for no result. `Content-Length` is
+verified on the write path, so a short file at the destination came from outside
+this function; validating it is the caller's job.
+
+```python
+# Second run over a directory that is already complete: no requests are made.
+download_single_file(url, '/local/data.fits')            # -> True, no fetch
+download_single_file(url, '/local/data.fits', overwrite=True)  # -> re-fetches
+```
+
 ### Retry Logic
 
 On download failure, retries with exponential backoff:
