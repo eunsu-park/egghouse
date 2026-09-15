@@ -107,7 +107,22 @@ def download_single_file(
     """
     dest_path = Path(destination)
     if dest_path.exists() and not overwrite:
-        return True
+        # An empty file is not a download, it is the residue of one. Callers
+        # dedup on presence, so returning True here parks a zero-byte file at
+        # the destination forever: nothing re-fetches it and every later run
+        # reports success. Treat it as absent and fetch again.
+        #
+        # A truncated but non-empty file is not caught here and cannot be
+        # cheaply -- knowing the expected size means a HEAD per existing file,
+        # which for an archive that is already complete is a round-trip per file
+        # for no result. Content-Length is verified on the write path below, so
+        # a short file at the destination came from outside this function;
+        # validating it is the caller's job.
+        try:
+            if dest_path.stat().st_size > 0:
+                return True
+        except OSError:
+            return True  # cannot stat it; assume present rather than clobber
 
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 

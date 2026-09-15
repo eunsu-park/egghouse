@@ -224,6 +224,28 @@ def test_download_single_file_skips_when_exists_and_not_overwrite(tmp_path):
     assert dest.read_bytes() == b"old"
 
 
+def test_download_single_file_refetches_zero_byte_existing(monkeypatch, tmp_path):
+    """A zero-byte file at the destination must not count as already downloaded.
+
+    Callers dedup on presence, so treating an empty file as a success parks it
+    there forever: nothing re-fetches it and every later run reports success.
+    """
+    dest = tmp_path / "empty.fts"
+    dest.write_bytes(b"")
+
+    def fake_get(url, **kwargs):
+        resp = MagicMock()
+        resp.headers = {"Content-Length": "4"}
+        resp.iter_content = lambda chunk_size: [b"data"]
+        resp.raise_for_status = lambda: None
+        return resp
+
+    monkeypatch.setattr("egghouse.transfer.http.requests.get", fake_get)
+    ok = download_single_file("https://example/x.fts", str(dest), overwrite=False)
+    assert ok is True
+    assert dest.read_bytes() == b"data"
+
+
 # --- Content-Length verification ---
 
 
