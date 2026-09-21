@@ -69,7 +69,7 @@ egghouse/image/
 | Function | Description |
 |------|------|
 | `psnr` | Peak SNR (dB); `+inf` for identical images |
-| `ssim` | Single-scale SSIM (Wang 2004) |
+| `ssim` | Single-scale SSIM (Wang et al. 2004): 11 x 11 Gaussian window, sigma 1.5 px, K1 = 0.01, K2 = 0.03, 'valid' convolution, mean of the per-window map |
 | `ms_ssim` | Multi-scale SSIM (Wang 2003, 5-scale) |
 | `weak_signal_contrast` | Sobel gradient correlation (weak-edge preservation, placeholder) |
 

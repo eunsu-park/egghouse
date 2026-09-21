@@ -19,6 +19,9 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ### Fixed
 
+- `egghouse.image.ssim`: returns the mean of the per-window SSIM map (Wang et al. 2004), not the
+  product of the means of the luminance and contrast-structure maps (commit `04b5acc`). SSIM values
+  computed with earlier commits are slightly different and are not comparable.
 - `egghouse.transfer.download_single_file`: a zero-byte file at the destination
   no longer counts as a completed download. With `overwrite=False` the function
   returned True for any existing path, size unchecked; since callers dedup on
