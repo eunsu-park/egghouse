@@ -26,6 +26,15 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ### Fixed
 
+- `egghouse.dem.temperature_response_from_chianti`: H- and He-like ions (He II, O VII–VIII,
+  Mg XI–XII, Si XIII–XIV, Fe XXV, … — 41 ions in CHIANTI 11) are no longer dropped (commit
+  `617338b`). The band mask was built from all transitions while
+  `fiasco.Ion.contribution_function` returns only the bound-bound ones; for ions that also list
+  two-photon transitions the shapes disagreed, the IndexError was swallowed by the
+  skip-incomplete-ion handler, and the whole ion was left out. The mask now uses
+  `transitions.is_bound_bound`. For AIA, intensities reconstructed from typical coronal DEMs
+  change by < 1% (+0.8–1.5% in 131 Å). Responses cached with earlier commits lack these ions;
+  recompute caches to pick up the fix. Continuum emission is still not included.
 - `egghouse.image.ssim`: returns the mean of the per-window SSIM map (Wang et al. 2004), not the
   product of the means of the luminance and contrast-structure maps (commit `04b5acc`). SSIM values
   computed with earlier commits are slightly different and are not comparable.
