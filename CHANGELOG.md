@@ -6,6 +6,13 @@ based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 
 ## [Unreleased]
 
+### Added — `egghouse.report`: vault note → PDF
+
+- `egghouse.report.render_pdf` / `python -m egghouse.report`: renders an Obsidian
+  note (weekly report) to an A4 PDF via headless Chromium (Playwright). `![[embeds]]` resolve
+  under the vault root, wikilinks become display text. New `report` extra
+  (`markdown`, `playwright`); setup, fonts and checks in `docs/report_guide.md`.
+
 ### Added — Poisson-Gaussian primitives for the lolipop evaluation rail
 
 - `egghouse.denoise.anscombe.generalized_forward` / `generalized_inverse`: the

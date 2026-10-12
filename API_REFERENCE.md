@@ -493,3 +493,14 @@ File transfer utilities for HTTP, FTP, and SFTP protocols.
 |------|-------------|
 | `HAS_HTTP` | `True` if requests/beautifulsoup4 are available for HTTP |
 | `HAS_PARAMIKO` | `True` if paramiko is available for SFTP |
+
+---
+
+## egghouse.report
+
+Requires the `report` extra and `python -m playwright install chromium`; see [report_guide](docs/report_guide.md).
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `render_pdf` | `(src, vault=None, out=None) -> Path` | Render a vault Markdown note to an A4 PDF with headless Chromium |
+| `resolve_links` | `(text, vault) -> str` | Obsidian `![[embed]]` → `<img>`, `[[link\|alias]]` → display text |

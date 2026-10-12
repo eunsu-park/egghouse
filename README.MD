@@ -35,6 +35,7 @@ A plain install is **fully working**: the SDO / DEM / transfer / FITS stacks
 | `denoise` | scikit-image, PyWavelets, bm3d | `egghouse.denoise` |
 | `image` | opencv-python | the OpenCV-backed transform in `egghouse.image` |
 | `config` | pyyaml | YAML support in `egghouse.config` |
+| `report` | markdown, playwright | `egghouse.report` (plus `playwright install chromium`) |
 | `all` | all of the above | — |
 
 `egghouse[sdo]`, `[dem]`, `[transfer]`, `[fits]` remain as **empty no-op
@@ -76,7 +77,7 @@ dem, info = dem_sites(intensities, errors, response, temps)
 
 ## Modules
 
-Eight modules; each has a detailed guide under [docs/](docs/) (or the
+Nine modules; each has a detailed guide under [docs/](docs/) (or the
 [API reference](API_REFERENCE.md) for full signatures). Heavy deps are
 lazy-imported, so importing one module never eagerly pulls another's.
 
@@ -90,6 +91,7 @@ lazy-imported, so importing one module never eagerly pulls another's.
 | `swdb` | solar/space-weather DB layer + NOAA SWPC parsers | [swdb_guide](docs/swdb_guide.md) |
 | `transfer` | HTTP / FTP / SFTP downloads | [transfer_guide](docs/transfer_guide.md) |
 | `config` | `BaseConfig` — env / YAML / JSON / CLI config | [config_guide](docs/config_guide.md) |
+| `report` | vault Markdown note → A4 PDF (headless Chromium) | [report_guide](docs/report_guide.md) |
 
 ---
 
