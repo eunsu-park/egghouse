@@ -166,6 +166,43 @@ def _make_synthetic_ssw_npz(path, *, n_t=11, response_key="response_v10_en"):
     return log_t, channels, response
 
 
+class TestTemperatureResponseFromChianti:
+    """Line selection in ``temperature_response_from_chianti`` (fake fiasco, no CHIANTI)."""
+
+    def test_non_bound_bound_transition_does_not_drop_ion(self, monkeypatch):
+        """An ion whose transition list includes a non-bound-bound entry (as H- and
+        He-like ions do) must still contribute its bound-bound lines."""
+        import astropy.constants as const
+        import astropy.units as u
+        from types import SimpleNamespace
+
+        from egghouse.dem import response as resp
+
+        temps = np.array([1e6, 2e6])
+        g_bb = np.array([[1.0, 2.0], [3.0, 4.0]]) * 1e-25  # (n_T, n_bound_bound)
+
+        class FakeIon:
+            def __init__(self, name, T, abundance=None):
+                self.transitions = SimpleNamespace(
+                    wavelength=np.array([100.0, 150.0, 300.0]) * u.AA,
+                    is_bound_bound=np.array([True, False, True]),
+                )
+
+            def contribution_function(self, density):
+                return g_bb[:, None, :] * u.cm**3 * u.erg / u.s
+
+        fake = SimpleNamespace(list_ions=lambda: ["he_2"], Ion=FakeIon)
+        monkeypatch.setattr(resp, "fiasco", fake, raising=False)
+
+        wl = np.linspace(50.0, 400.0, 351)
+        K = resp.temperature_response_from_chianti(
+            [(wl, np.ones_like(wl), 4 * np.pi)], temps, band=(80.0, 360.0)
+        )
+        hc = (const.h * const.c).to_value("erg angstrom")
+        expected = (g_bb / (hc / np.array([100.0, 300.0]))).sum(axis=1)
+        np.testing.assert_allclose(K[:, 0], expected, rtol=1e-10)
+
+
 class TestLoadSswTemperatureResponse:
     """Tests for load_ssw_temperature_response and the SSW dispatch in
     get_temperature_response."""

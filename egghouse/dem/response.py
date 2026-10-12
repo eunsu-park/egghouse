@@ -151,7 +151,10 @@ def temperature_response_from_chianti(
     for ion_name in fiasco.list_ions():
         try:
             ion = fiasco.Ion(ion_name, T, abundance=abundance)
-            line_wl = ion.transitions.wavelength.to_value("angstrom")
+            # contribution_function covers bound-bound transitions only; masking
+            # all transitions misaligns (and silently drops) H- and He-like ions.
+            transitions = ion.transitions
+            line_wl = transitions.wavelength[transitions.is_bound_bound].to_value("angstrom")
             in_band = (line_wl >= band[0]) & (line_wl <= band[1])
             if not in_band.any():
                 continue
