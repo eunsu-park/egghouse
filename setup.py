@@ -53,6 +53,11 @@ setup(
         "image": [
             "opencv-python>=4.5",
         ],
+        # Markdown note -> PDF (egghouse.report); Chromium via `playwright install chromium`
+        "report": [
+            "markdown>=3.4",
+            "playwright>=1.40",
+        ],
         # Config module (YAML support)
         "config": [
             "pyyaml>=6.0",
@@ -81,6 +86,8 @@ setup(
             "PyWavelets>=1.4",
             "bm3d>=4.0",
             "opencv-python>=4.5",
+            "markdown>=3.4",
+            "playwright>=1.40",
         ],
     },
 
